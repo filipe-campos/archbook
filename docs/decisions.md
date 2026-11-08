@@ -68,5 +68,4 @@ Choices made where the v0.1 brief left room, newest topics last. Each entry says
 
 ## Open points
 
-- **GitHub location.** The repository URL `https://github.com/archbook/archbook` (in `plugin.json`, the CLI `package.json` and the README) is a placeholder until the project has its final home.
 - **Windows.** Windows has not been tested in v0.1. The `archbook` shim has a `.cmd` variant, but spawning `claude` there may need `shell: true`.

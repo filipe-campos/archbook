@@ -26,10 +26,10 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/archbook/archbook.git",
+    "url": "git+https://github.com/filipe-campos/archbook.git",
     "directory": "packages/cli"
   },
-  "homepage": "https://github.com/archbook/archbook#readme",
+  "homepage": "https://github.com/filipe-campos/archbook#readme",
   "scripts": {
     "build": "tsup && node scripts/copy-assets.mjs",
     "test": "vitest run",

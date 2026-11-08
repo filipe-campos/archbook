@@ -60,7 +60,7 @@ Inside Claude Code:
 The same commands, agents and skills install as a plugin straight from this repository:
 
 ```sh
-claude plugin marketplace add archbook/archbook
+claude plugin marketplace add filipe-campos/archbook
 claude plugin install archbook@archbook
 ```
 
