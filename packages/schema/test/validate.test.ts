@@ -61,6 +61,31 @@ describe("validateArchitecture", () => {
       expectSingleError(doc, "schema", "nodes[1].id");
     });
 
+    const unsafeUrls = ["javascript:alert(1)", "data:text/html,<b>x</b>", "file:///etc/passwd"];
+
+    it.each(unsafeUrls)("rejects the link url %s", (url) => {
+      const doc = baseDocument();
+      doc.nodes[0]!.links = [{ label: "Docs", url }];
+      const error = expectSingleError(doc, "schema", "nodes[0].links[0].url");
+      expect(error.message).toMatch(/http or https/);
+    });
+
+    it.each(unsafeUrls)("rejects the repoUrl %s", (url) => {
+      const doc = baseDocument();
+      doc.project.repoUrl = url;
+      expectSingleError(doc, "schema", "project.repoUrl");
+    });
+
+    it.each(["https://github.com/o/r", "http://localhost:3000/docs", "HTTPS://Example.com"])(
+      "accepts the http(s) URL %s",
+      (url) => {
+        const doc = baseDocument();
+        doc.project.repoUrl = url;
+        doc.nodes[0]!.links = [{ label: "Docs", url }];
+        expect(codes(doc).errors).toEqual([]);
+      },
+    );
+
     it("rejects unknown keys so typos are caught", () => {
       const doc = baseDocument();
       (doc.nodes[0] as Record<string, unknown>).sumary = "typo";

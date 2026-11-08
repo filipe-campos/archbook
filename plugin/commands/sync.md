@@ -1,6 +1,6 @@
 ---
 description: Update archbook/architecture.json to match code changes since it was generated, keeping ids stable
-allowed-tools: Read, Glob, Grep, Skill, Agent, Edit(./archbook/**), Bash(npx archbook *), Bash(archbook *), Bash(git log *), Bash(git diff *), Bash(git status *)
+allowed-tools: Read, Glob, Grep, Skill, Agent, Edit(./archbook/architecture.json), Bash(archbook validate *), Bash(archbook snapshot *), Bash(archbook --version *), Bash(npx archbook validate *), Bash(npx archbook snapshot *), Bash(npx archbook --version *), Bash(git log *), Bash(git diff *), Bash(git status *)
 ---
 
 # Sync the architecture document with the code

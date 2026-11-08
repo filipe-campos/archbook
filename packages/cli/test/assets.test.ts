@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { commandPrompt, planAssets, rewriteForProject } from "../src/lib/assets.js";
+import { ALLOWED_TOOLS, ARCHBOOK_BASH_RULES, ARCHITECTURE_EDIT_RULE } from "../src/lib/claude.js";
 import { repoRoot } from "./helpers.js";
 
 const pluginRoot = path.join(repoRoot, "plugin");
@@ -62,6 +63,41 @@ describe("plugin assets", () => {
   it("rewrites every plugin-mode reference in the copies", () => {
     const reference = new RegExp(`\\barchbook:(${[...known].join("|")})\\b`);
     for (const asset of assets) expect(asset.content, asset.target).not.toMatch(reference);
+  });
+});
+
+describe("permissions", () => {
+  const DESTRUCTIVE = ["remove", "undo", "init", "generate", "build", "dev"];
+  const isArchbookRule = (rule: string) => /^Bash\((npx )?archbook\b/.test(rule);
+
+  function checkRules(rules: string[], where: string) {
+    expect(rules, where).not.toContain("Bash(archbook *)");
+    expect(rules, where).not.toContain("Bash(npx archbook *)");
+    for (const rule of rules.filter(isArchbookRule)) {
+      for (const sub of DESTRUCTIVE) expect(rule, where).not.toMatch(new RegExp(`\\b${sub}\\b`));
+    }
+    expect(rules.filter(isArchbookRule).sort(), where).toEqual([...ARCHBOOK_BASH_RULES].sort());
+    expect(
+      rules.filter((rule) => rule.startsWith("Edit")),
+      where,
+    ).toEqual([ARCHITECTURE_EDIT_RULE]);
+  }
+
+  it("lets plugin commands run only the safe archbook subcommands and edit only architecture.json", () => {
+    const commands = assets.filter((a) => a.kind === "command" && a.target.endsWith(".md"));
+    expect(commands).toHaveLength(4);
+    for (const asset of commands) {
+      const rules = (frontmatter(asset.content)["allowed-tools"] ?? "")
+        .split(/,\s*/)
+        .filter(Boolean);
+      checkRules(rules, asset.target);
+    }
+  });
+
+  it("gives the headless session the same archbook rules", () => {
+    checkRules(ALLOWED_TOOLS, "ALLOWED_TOOLS");
+    expect(ARCHITECTURE_EDIT_RULE).toBe("Edit(./archbook/architecture.json)");
+    expect(ARCHBOOK_BASH_RULES).toContain("Bash(archbook --version *)");
   });
 });
 

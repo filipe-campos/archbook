@@ -1,7 +1,7 @@
 ---
 description: Trace one flow through the code and add it to archbook/architecture.json, or update it if it already exists
 argument-hint: <flow description>
-allowed-tools: Read, Glob, Grep, Skill, Agent, Edit(./archbook/**), Bash(npx archbook *), Bash(archbook *)
+allowed-tools: Read, Glob, Grep, Skill, Agent, Edit(./archbook/architecture.json), Bash(archbook validate *), Bash(archbook snapshot *), Bash(archbook --version *), Bash(npx archbook validate *), Bash(npx archbook snapshot *), Bash(npx archbook --version *)
 ---
 
 # Add a flow

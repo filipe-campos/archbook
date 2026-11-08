@@ -1,5 +1,6 @@
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   readdirSync,
@@ -10,11 +11,18 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { buildConfig, parseLines, performInit, type InitAnswers } from "../src/commands/init.js";
+import {
+  askQuestions,
+  buildConfig,
+  parseLines,
+  performInit,
+  type InitAnswers,
+} from "../src/commands/init.js";
 import { describePlan, executeRemoval, planRemoval } from "../src/commands/remove.js";
-import { readManifest } from "../src/lib/manifest.js";
-import { projectPaths } from "../src/lib/project.js";
+import { readManifest, type Manifest } from "../src/lib/manifest.js";
+import { isSafeProjectPath, projectPaths, resolveInside } from "../src/lib/project.js";
 import { defaultsPrompter, type Prompter } from "../src/lib/prompter.js";
+import { UserError } from "../src/lib/ui.js";
 import { repoRoot, tempProject, treeSnapshot } from "./helpers.js";
 
 const pluginRoot = path.join(repoRoot, "plugin");
@@ -107,6 +115,27 @@ describe("init", () => {
     });
     expect(confirm).toHaveBeenCalledOnce();
     expect(second.replaced).toEqual([".claude/commands/archbook-generate.md"]);
+  });
+
+  it("accepts only http(s) repository URLs", async () => {
+    let validate: ((value: string) => string | undefined) | undefined;
+    await askQuestions(
+      {
+        ...defaultsPrompter,
+        text: async (options) => {
+          if (options.message.startsWith("Repository URL")) validate = options.validate;
+          return options.defaultValue ?? "";
+        },
+      },
+      tempProject(),
+    );
+    expect(validate).toBeDefined();
+    for (const value of ["", "https://github.com/o/r", "http://localhost:8080/repo"]) {
+      expect(validate!(value)).toBeUndefined();
+    }
+    for (const value of ["javascript:alert(1)", "data:text/html,x", "file:///repo", "github.com"]) {
+      expect(validate!(value)).toMatch(/http or https/);
+    }
   });
 
   it("parses free-text lists", () => {
@@ -222,5 +251,108 @@ describe("remove", () => {
     expect(targets).toContain(".claude/skills/archbook-schema");
     expect(targets).not.toContain(".claude/commands/deploy.md");
     expect(targets).not.toContain(".gitignore");
+  });
+});
+
+describe("untrusted manifests", () => {
+  /** A project in `<tmp>/project` next to a file the manifest must never reach. */
+  function projectWithOutsideFile() {
+    const base = tempProject({ "outside.txt": "keep me\n", "project/package.json": "{}\n" });
+    const root = path.join(base, "project");
+    return { base, root, paths: projectPaths(root) };
+  }
+
+  function writeManifest(root: string, entries: unknown[]) {
+    const manifest = {
+      archbookManifest: 1,
+      archbookVersion: "0.1.0",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      entries,
+    } satisfies Omit<Manifest, "entries"> & { entries: unknown[] };
+    mkdirSync(path.join(root, "archbook"), { recursive: true });
+    writeFileSync(path.join(root, "archbook/.manifest.json"), JSON.stringify(manifest));
+  }
+
+  it("refuses an entry that points outside the project", () => {
+    const { base, root, paths } = projectWithOutsideFile();
+    writeManifest(root, [{ path: "../outside.txt", change: "created", hash: "sha256:x" }]);
+    const before = treeSnapshot(base);
+    expect(() => planRemoval(paths)).toThrow(UserError);
+    expect(() => planRemoval(paths)).toThrow(/entries\[0\]\.path/);
+    expect(treeSnapshot(base)).toEqual(before);
+  });
+
+  it("refuses an absolute path, so nothing is written", () => {
+    const { base, root, paths } = projectWithOutsideFile();
+    const target = path.join(base, "outside.txt");
+    writeManifest(root, [
+      { path: target, change: "replaced", hash: "sha256:x", original: "pwned\n" },
+    ]);
+    expect(() => planRemoval(paths)).toThrow(UserError);
+    expect(readFileSync(target, "utf8")).toBe("keep me\n");
+  });
+
+  it("reports a manifest that is not valid JSON", () => {
+    const { base, root, paths } = projectWithOutsideFile();
+    mkdirSync(path.join(root, "archbook"), { recursive: true });
+    writeFileSync(path.join(root, "archbook/.manifest.json"), "{ not json");
+    const before = treeSnapshot(base);
+    expect(() => planRemoval(paths)).toThrow(
+      /archbook\/\.manifest\.json is invalid.*not valid JSON/,
+    );
+    expect(treeSnapshot(base)).toEqual(before);
+  });
+
+  it("rejects entries of an unknown shape", () => {
+    const { root, paths } = projectWithOutsideFile();
+    writeManifest(root, [{ path: "a.txt", change: "deleted" }]);
+    expect(() => readManifest(paths)).toThrow(UserError);
+  });
+
+  it("refuses to execute a plan that leaves the project", async () => {
+    const { base, root, paths } = projectWithOutsideFile();
+    const before = treeSnapshot(base);
+    await expect(
+      executeRemoval(
+        paths,
+        {
+          mode: "manifest",
+          items: [{ action: "delete", path: "../outside.txt", group: "changes", edited: false }],
+        },
+        { backupDir },
+      ),
+    ).rejects.toThrow(/not inside/);
+    expect(treeSnapshot(base)).toEqual(before);
+    expect(existsSync(root)).toBe(true);
+  });
+});
+
+describe("project paths", () => {
+  it.each([
+    ["archbook", true],
+    [".claude/commands/archbook-generate.md", true],
+    [".gitignore", true],
+    [".", false],
+    ["", false],
+    ["../x", false],
+    ["a/../../b", false],
+    ["a/../b", false],
+    ["./a", false],
+    ["a//b", false],
+    ["a/", false],
+    ["/etc/passwd", false],
+    ["C:/x", false],
+    ["a\\b", false],
+  ])("isSafeProjectPath(%j) is %s", (file, safe) => {
+    expect(isSafeProjectPath(file)).toBe(safe);
+  });
+
+  it("resolves paths inside the root and refuses the rest", () => {
+    const root = tempProject();
+    expect(resolveInside(root, "a/b.txt")).toBe(path.join(root, "a/b.txt"));
+    expect(resolveInside(root, "a/../b")).toBe(path.join(root, "b"));
+    for (const outside of ["a/../../b", "..", ".", "", path.join(tmpdir(), "elsewhere")]) {
+      expect(() => resolveInside(root, outside)).toThrow(/not inside/);
+    }
   });
 });

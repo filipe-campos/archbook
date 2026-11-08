@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AudienceSchema, SCHEMA_VERSION } from "./architecture.js";
+import { AudienceSchema, HttpUrlSchema, SCHEMA_VERSION } from "./architecture.js";
 
 export const DETAIL_LEVELS = ["high-level", "medium", "detailed"] as const;
 export const DetailLevelSchema = z
@@ -23,7 +23,7 @@ export const ArchbookConfigSchema = z
     project: z.strictObject({
       name: z.string().min(1),
       description: z.string().default(""),
-      repoUrl: z.url().optional(),
+      repoUrl: HttpUrlSchema.optional(),
       defaultBranch: z.string().min(1).default("main"),
     }),
     audience: AudienceSchema.default("developers"),

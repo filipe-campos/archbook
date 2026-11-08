@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { tokenizeJson } from "../src/lib/jsonTokens";
 import { clampStep, formatDuration, stepTiming } from "../src/lib/playback";
 import { formatHash, parseHash, type Route } from "../src/lib/route";
+import { safeHref } from "../src/lib/safeUrl";
 import { searchNodes } from "../src/lib/search";
 import { formatSourceLabel, sourceUrl } from "../src/lib/sourceUrl";
 import { example } from "./example";
@@ -84,6 +85,30 @@ describe("sourceUrl", () => {
     expect(formatSourceLabel(source)).toBe("src/app.ts:10-20");
     expect(formatSourceLabel({ path: "a.ts", lines: [4, 4] })).toBe("a.ts:4");
     expect(formatSourceLabel({ path: "a.ts" })).toBe("a.ts");
+  });
+});
+
+describe("safeHref", () => {
+  it.each(["https://github.com/o/r", "http://localhost:3000/a?b=1#c", "HTTPS://Example.com/x"])(
+    "keeps %s",
+    (url) => {
+      expect(safeHref(url)).toBe(new URL(url).href);
+    },
+  );
+
+  it.each([
+    "javascript:alert(1)",
+    " JavaScript:alert(1)",
+    "JAVASCRIPT:alert(1)",
+    "\tjavascript:alert(1)",
+    "data:text/html,<b>x</b>",
+    "file:///etc/passwd",
+    "vbscript:msgbox(1)",
+    "/relative/path",
+    "not a url",
+    "",
+  ])("rejects %j", (url) => {
+    expect(safeHref(url)).toBeUndefined();
   });
 });
 

@@ -45,11 +45,17 @@ describe("generate", () => {
     const [call] = calls();
     expect(call!.prompt).toBe("/archbook:generate");
     expect(call!.args).toEqual(
-      expect.arrayContaining(["--plugin-dir", "--allowedTools", "Edit(./archbook/**)"]),
+      expect.arrayContaining([
+        "--plugin-dir",
+        "--allowedTools",
+        "Edit(./archbook/architecture.json)",
+        "Bash(archbook validate *)",
+      ]),
     );
     expect(call!.args.indexOf("--allowedTools")).toBeGreaterThan(
       call!.args.indexOf("--plugin-dir"),
     );
+    expect(call!.args).not.toContain("Bash(archbook *)");
   });
 
   it("uses the project's copy of the command when init installed it", async () => {

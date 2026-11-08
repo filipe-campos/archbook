@@ -4,15 +4,25 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 
-/** Tools a headless generation may use. File edits are limited to the archbook/ folder. */
+/** The only Archbook subcommands the plugin runs; none of them deletes or overwrites user files. */
+export const ARCHBOOK_SUBCOMMANDS = ["validate", "snapshot", "--version"] as const;
+
+/** A trailing ` *` also matches the bare command, so `archbook --version` is covered. */
+export const ARCHBOOK_BASH_RULES = ["archbook", "npx archbook"].flatMap((bin) =>
+  ARCHBOOK_SUBCOMMANDS.map((sub) => `Bash(${bin} ${sub} *)`),
+);
+
+/** Edit rules also cover the Write tool. */
+export const ARCHITECTURE_EDIT_RULE = "Edit(./archbook/architecture.json)";
+
+/** Tools a headless generation may use. */
 export const ALLOWED_TOOLS = [
   "Read",
   "Glob",
   "Grep",
   "Skill",
-  "Edit(./archbook/**)",
-  "Bash(npx archbook *)",
-  "Bash(archbook *)",
+  ARCHITECTURE_EDIT_RULE,
+  ...ARCHBOOK_BASH_RULES,
   "Bash(git diff *)",
   "Bash(git log *)",
   "Bash(git status *)",
@@ -25,7 +35,7 @@ export const HEADLESS_SYSTEM_PROMPT = [
   "You are running non-interactively, started by the `archbook generate` command.",
   "No user can answer questions: make reasonable decisions, state your assumptions in the final report, and never wait for confirmation.",
   "The Archbook CLI is on PATH as `archbook`. Wherever instructions say `npx archbook <command>`, run `archbook <command>` instead.",
-  "Only edit files inside the archbook/ folder.",
+  "Only edit archbook/architecture.json.",
 ].join(" ");
 
 export const INSTALL_HINT = "npm install -g @anthropic-ai/claude-code";

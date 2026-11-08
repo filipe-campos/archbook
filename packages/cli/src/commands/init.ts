@@ -6,6 +6,7 @@ import {
   ArchbookConfigSchema,
   DEFAULT_HISTORY_LIMIT,
   DEFAULT_IGNORE,
+  HttpUrlSchema,
   type ArchbookConfig,
   type Audience,
   type DetailLevel,
@@ -18,7 +19,7 @@ import { detectStack, projectDefaults } from "../lib/detect.js";
 import { readTextIfExists, sha256, writeFileAtomic, writeJson } from "../lib/fs.js";
 import { gitDefaultBranch, gitRemoteUrl } from "../lib/git.js";
 import { ManifestRecorder } from "../lib/manifest.js";
-import { ARCHBOOK_DIR, projectPaths, type ProjectPaths } from "../lib/project.js";
+import { ARCHBOOK_DIR, projectPaths, resolveInside, type ProjectPaths } from "../lib/project.js";
 import type { Prompter } from "../lib/prompter.js";
 import { GITIGNORE_HEADER, GITIGNORE_LINES, textToAppend } from "../lib/textBlock.js";
 import { bullet, command } from "../lib/ui.js";
@@ -139,15 +140,10 @@ export async function askQuestions(prompter: Prompter, root: string): Promise<In
     message: "Repository URL (to link components to their source files; optional)",
     defaultValue: detectedRepo ?? "",
     placeholder: detectedRepo ?? "https://github.com/owner/repo",
-    validate: (value) => {
-      if (!value.trim()) return undefined;
-      try {
-        new URL(value.trim());
-        return undefined;
-      } catch {
-        return "Enter a full URL, or leave it empty";
-      }
-    },
+    validate: (value) =>
+      !value.trim() || HttpUrlSchema.safeParse(value.trim()).success
+        ? undefined
+        : "Enter a full http or https URL, or leave it empty",
   });
 
   return {
@@ -205,7 +201,7 @@ async function installAsset(
   prompter: Prompter,
   report: InstallReport,
 ): Promise<void> {
-  const absolute = path.join(root, asset.target);
+  const absolute = resolveInside(root, asset.target);
   const hash = sha256(asset.content);
   const existing = readTextIfExists(absolute);
   const entry = recorder.get(asset.target);

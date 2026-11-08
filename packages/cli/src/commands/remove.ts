@@ -7,7 +7,7 @@ import { ASSET_PREFIX, PLUGIN_NAME } from "../lib/assets.js";
 import { backupFiles } from "../lib/backup.js";
 import { readTextIfExists, sha256, writeFileAtomic } from "../lib/fs.js";
 import { readManifest } from "../lib/manifest.js";
-import { ARCHBOOK_DIR, relativePath, type ProjectPaths } from "../lib/project.js";
+import { ARCHBOOK_DIR, relativePath, resolveInside, type ProjectPaths } from "../lib/project.js";
 import { CancelledError, type Prompter } from "../lib/prompter.js";
 import { removeAppendedText } from "../lib/textBlock.js";
 import { UserError, bullet, command } from "../lib/ui.js";
@@ -40,9 +40,9 @@ const DOC_FILES = ["architecture.json", "dist"];
 const TOOLING_FILES = ["config.json", ".history", ".manifest.json"];
 const ASSET_DIRS = [".claude/commands", ".claude/agents", ".claude/skills"];
 
-const exists = (root: string, file: string) => existsSync(path.join(root, file));
+const exists = (root: string, file: string) => existsSync(resolveInside(root, file));
 const isEdited = (root: string, file: string, hash: string) => {
-  const text = readTextIfExists(path.join(root, file));
+  const text = readTextIfExists(resolveInside(root, file));
   return text !== undefined && sha256(text) !== hash;
 };
 
@@ -201,13 +201,14 @@ export async function executeRemoval(
 ): Promise<RemovalResult> {
   const root = paths.root;
   const result: RemovalResult = { removed: [], kept: [], restored: [], reverted: [], warnings: [] };
+  const absolutes = plan.items.map((item) => resolveInside(root, item.path));
   const touched = plan.items
     .filter((item) => item.action !== "delete-dir-if-empty")
     .map((item) => item.path);
   result.backup = await backupFiles(root, touched, options.backupDir);
 
-  for (const item of plan.items) {
-    const absolute = path.join(root, item.path);
+  for (const [index, item] of plan.items.entries()) {
+    const absolute = absolutes[index]!;
     if ((item.action === "delete" || item.action === "restore") && item.edited) {
       const proceed = (await options.confirmEdited?.(item.path)) ?? false;
       if (!proceed) {

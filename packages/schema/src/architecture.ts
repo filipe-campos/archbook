@@ -69,9 +69,19 @@ export const SourceRefSchema = z
   })
   .describe("A pointer to code that implements or proves the documented behavior.");
 
+/**
+ * Absolute http or https URL. Other schemes (`javascript:`, `data:`, `file:`) are rejected because
+ * the viewer renders these values as links on a published site.
+ */
+export const HttpUrlSchema = z.url({
+  protocol: /^https?$/,
+  hostname: z.regexes.hostname,
+  error: "must be an absolute http or https URL",
+});
+
 export const LinkSchema = z.strictObject({
   label: z.string().min(1),
-  url: z.url(),
+  url: HttpUrlSchema.describe("Absolute http or https URL."),
 });
 
 export const PositionSchema = z
@@ -147,7 +157,9 @@ export const ArchFlowSchema = z.strictObject({
 export const ProjectSchema = z.strictObject({
   name: z.string().min(1),
   description: z.string().default(""),
-  repoUrl: z.url().optional().describe("Used to link source files, e.g. https://github.com/o/r."),
+  repoUrl: HttpUrlSchema.optional().describe(
+    "Http or https URL used to link source files, e.g. https://github.com/o/r.",
+  ),
   defaultBranch: z.string().min(1).default("main"),
 });
 

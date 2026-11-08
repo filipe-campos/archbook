@@ -126,12 +126,12 @@ Optional fields with a default (for example `tech`, `sources` and `flows`) can b
 
 ## `project`
 
-| Field           | Type   | Required / default | Description                                                                                              |
-| --------------- | ------ | ------------------ | -------------------------------------------------------------------------------------------------------- |
-| `name`          | string | required           | Display name of the system.                                                                              |
-| `description`   | string | default `""`       | One or two sentences on what the system does.                                                            |
-| `repoUrl`       | URL    | optional           | Repository URL, e.g. `https://github.com/acme/shop`. Used to link source references to the hosted files. |
-| `defaultBranch` | string | default `"main"`   | Branch used in those links.                                                                              |
+| Field           | Type   | Required / default | Description                                                                                                                                         |
+| --------------- | ------ | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`          | string | required           | Display name of the system.                                                                                                                         |
+| `description`   | string | default `""`       | One or two sentences on what the system does.                                                                                                       |
+| `repoUrl`       | URL    | optional           | Repository URL, e.g. `https://github.com/acme/shop`. Used to link source references to the hosted files. Must be an absolute `http` or `https` URL. |
+| `defaultBranch` | string | default `"main"`   | Branch used in those links.                                                                                                                         |
 
 ```json
 "project": {
@@ -351,10 +351,10 @@ Point at the narrowest code that proves the claim: the route registration, the c
 
 ## Links
 
-| Field   | Type   | Required / default | Description                         |
-| ------- | ------ | ------------------ | ----------------------------------- |
-| `label` | string | required           | Link text, e.g. `Stripe dashboard`. |
-| `url`   | URL    | required           | Absolute URL.                       |
+| Field   | Type   | Required / default | Description                                                                                        |
+| ------- | ------ | ------------------ | -------------------------------------------------------------------------------------------------- |
+| `label` | string | required           | Link text, e.g. `Stripe dashboard`.                                                                |
+| `url`   | URL    | required           | Absolute `http` or `https` URL. Other schemes (`javascript:`, `data:`, `file:`) are schema errors. |
 
 ```json
 "links": [{ "label": "Stripe dashboard", "url": "https://dashboard.stripe.com" }]
@@ -415,7 +415,7 @@ npx archbook validate --json   # machine-readable output, for scripts and agents
 | `version`               | string           | required                                                      | Must be `"0.1"`.                                                                                                           |
 | `project.name`          | string           | required                                                      | Copied into `architecture.json`.                                                                                           |
 | `project.description`   | string           | default `""`                                                  | Copied into `architecture.json`.                                                                                           |
-| `project.repoUrl`       | URL              | optional                                                      | Copied into `architecture.json`.                                                                                           |
+| `project.repoUrl`       | URL              | optional                                                      | Absolute `http` or `https` URL. Copied into `architecture.json`.                                                           |
 | `project.defaultBranch` | string           | default `"main"`                                              | Copied into `architecture.json`.                                                                                           |
 | `audience`              | string           | default `"developers"`                                        | `developers`, `stakeholders` or `mixed`.                                                                                   |
 | `language`              | string           | default `"en"`                                                | Language of the generated prose.                                                                                           |

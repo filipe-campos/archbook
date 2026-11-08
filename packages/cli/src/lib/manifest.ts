@@ -1,50 +1,90 @@
-import { readJson, writeJson } from "./fs.js";
-import type { ProjectPaths } from "./project.js";
+import { formatIssuePath } from "@archbook/schema";
+import { z } from "zod";
+import { readTextIfExists, writeJson } from "./fs.js";
+import { isSafeProjectPath, relativePath, type ProjectPaths } from "./project.js";
+import { UserError } from "./ui.js";
+
+/** Relative to the project root, with forward slashes. */
+const entryPath = z.string().refine(isSafeProjectPath, {
+  error: "must be a relative path inside the project, with forward slashes and no . or .. segments",
+});
 
 /** A file Archbook created. Removed only if unchanged, or after asking. */
-export interface CreatedFile {
-  path: string;
-  change: "created";
-  hash: string;
-}
+const CreatedFileSchema = z.strictObject({
+  path: entryPath,
+  change: z.literal("created"),
+  hash: z.string(),
+});
 
 /** An existing file the user allowed Archbook to overwrite; `original` is restored on removal. */
-export interface ReplacedFile {
-  path: string;
-  change: "replaced";
-  hash: string;
-  original: string;
-}
+const ReplacedFileSchema = z.strictObject({
+  path: entryPath,
+  change: z.literal("replaced"),
+  hash: z.string(),
+  original: z.string(),
+});
 
 /** Text Archbook appended to a file (e.g. .gitignore). Removal strips exactly that text. */
-export interface ModifiedFile {
-  path: string;
-  change: "modified";
-  hash: string;
-  appended: string;
+const ModifiedFileSchema = z.strictObject({
+  path: entryPath,
+  change: z.literal("modified"),
+  hash: z.string(),
+  appended: z.string(),
   /** True when the file did not exist before; it is deleted if nothing else is left in it. */
-  createdFile: boolean;
-}
+  createdFile: z.boolean(),
+});
 
 /** A directory Archbook created; removed only when empty. */
-export interface CreatedDirectory {
-  path: string;
-  change: "created-dir";
-}
+const CreatedDirectorySchema = z.strictObject({
+  path: entryPath,
+  change: z.literal("created-dir"),
+});
 
-export type ManifestEntry = CreatedFile | ReplacedFile | ModifiedFile | CreatedDirectory;
+export const ManifestEntrySchema = z.discriminatedUnion("change", [
+  CreatedFileSchema,
+  ReplacedFileSchema,
+  ModifiedFileSchema,
+  CreatedDirectorySchema,
+]);
 
-export interface Manifest {
-  archbookManifest: 1;
-  archbookVersion: string;
-  updatedAt: string;
-  /** Paths are relative to the project root, with forward slashes. */
-  entries: ManifestEntry[];
-}
+export const ManifestSchema = z.strictObject({
+  archbookManifest: z.literal(1),
+  archbookVersion: z.string(),
+  updatedAt: z.string(),
+  entries: z.array(ManifestEntrySchema),
+});
 
+export type CreatedFile = z.infer<typeof CreatedFileSchema>;
+export type ReplacedFile = z.infer<typeof ReplacedFileSchema>;
+export type ModifiedFile = z.infer<typeof ModifiedFileSchema>;
+export type CreatedDirectory = z.infer<typeof CreatedDirectorySchema>;
+export type ManifestEntry = z.infer<typeof ManifestEntrySchema>;
+export type Manifest = z.infer<typeof ManifestSchema>;
+
+/**
+ * Returns `undefined` when there is no manifest. A manifest that exists but cannot be trusted is an
+ * error, because `remove` deletes and overwrites the paths it lists.
+ */
 export function readManifest(paths: ProjectPaths): Manifest | undefined {
-  const data = readJson<Manifest>(paths.manifest);
-  return data?.archbookManifest === 1 && Array.isArray(data.entries) ? data : undefined;
+  const text = readTextIfExists(paths.manifest);
+  if (text === undefined) return undefined;
+  const invalid = (reason: string) =>
+    new UserError(
+      `${relativePath(paths.root, paths.manifest)} is invalid (${reason}). ` +
+        "Fix it, or delete it to remove Archbook in conservative mode.",
+    );
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch (error) {
+    throw invalid(`not valid JSON: ${(error as Error).message}`);
+  }
+  const parsed = ManifestSchema.safeParse(data);
+  if (!parsed.success) {
+    const issue = parsed.error.issues[0]!;
+    throw invalid(`${formatIssuePath(issue.path as Array<string | number>)}: ${issue.message}`);
+  }
+  return parsed.data;
 }
 
 export class ManifestRecorder {

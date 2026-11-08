@@ -29,6 +29,25 @@ describe("ArchbookConfigSchema", () => {
     });
     expect(result.success).toBe(false);
   });
+
+  it.each(["javascript:alert(1)", "data:text/plain,x", "file:///repo"])(
+    "rejects the repoUrl %s",
+    (repoUrl) => {
+      const result = ArchbookConfigSchema.safeParse({
+        version: "0.1",
+        project: { name: "Shop", repoUrl },
+      });
+      expect(result.success).toBe(false);
+    },
+  );
+
+  it("accepts an https repoUrl", () => {
+    const config = ArchbookConfigSchema.parse({
+      version: "0.1",
+      project: { name: "Shop", repoUrl: "https://github.com/o/r" },
+    });
+    expect(config.project.repoUrl).toBe("https://github.com/o/r");
+  });
 });
 
 describe("JSON Schema export", () => {

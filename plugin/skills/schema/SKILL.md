@@ -19,7 +19,7 @@ description: Specification of archbook/architecture.json (Archbook schema 0.1) a
 {
   $schema?: "https://unpkg.com/archbook@0.1/schema/architecture.schema.json", // always include
   version: "0.1",
-  project: { name: string, description?: string = "", repoUrl?: URL, defaultBranch?: string = "main" },
+  project: { name: string, description?: string = "", repoUrl?: URL /* absolute http(s) URL */, defaultBranch?: string = "main" },
   audience?: "developers" | "stakeholders" | "mixed" = "developers",
   language?: string = "en",          // language tag of all prose, e.g. "en", "pt-BR"
   groups?: Group[] = [],
@@ -37,7 +37,7 @@ Flow      { id, name, summary, trigger, steps: Step[] /* at least 1 */ }
 Step      { edge: EdgeId, title, description?, payload?: any JSON, durationMs?: number /* > 0 */,
             async?: boolean = false, reverse?: boolean = false }
 SourceRef { path, symbol?, lines?: [start, end] /* integers >= 1, start <= end, files only */ }
-Link      { label, url /* absolute URL */ }
+Link      { label, url /* absolute http(s) URL */ }
 Position  { x: number, y: number }   // px, relative to the parent group when the node has one
 NodeKind  = "app" | "service" | "worker" | "database" | "cache" | "queue" | "storage" | "external" | "actor"
 EdgeKind  = "http" | "grpc" | "event" | "queue" | "db" | "cache" | "storage" | "websocket" | "other"

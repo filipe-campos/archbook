@@ -2,6 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { ExternalLink, FileCode } from "lucide-react";
 import type { ArchNode, Architecture, SourceRef } from "@archbook/schema";
 import { NODE_KIND_STYLES } from "../../graph/kinds";
+import { safeHref } from "../../lib/safeUrl";
 import { formatSourceLabel, sourceUrl } from "../../lib/sourceUrl";
 import styles from "./Panel.module.css";
 
@@ -55,12 +56,14 @@ export function SourceList({
               </span>
             </>
           );
+          const href =
+            project.repoUrl && safeHref(sourceUrl(project.repoUrl, project.defaultBranch, source));
           return (
             <li key={`${source.path}:${index}`}>
-              {project.repoUrl ? (
+              {href ? (
                 <a
                   className={`${styles.linkButton} ${styles.source}`}
-                  href={sourceUrl(project.repoUrl, project.defaultBranch, source)}
+                  href={href}
                   target="_blank"
                   rel="noreferrer noopener"
                 >
@@ -83,19 +86,26 @@ export function Links({ links }: { links: ArchNode["links"] }) {
   return (
     <Section title="Links">
       <ul className={styles.list}>
-        {links.map((link) => (
-          <li key={link.url}>
-            <a
-              className={styles.linkButton}
-              href={link.url}
-              target="_blank"
-              rel="noreferrer noopener"
-            >
-              {link.label}
-              <ExternalLink size={13} className={styles.muted} />
-            </a>
-          </li>
-        ))}
+        {links.map((link) => {
+          const href = safeHref(link.url);
+          return (
+            <li key={link.url}>
+              {href ? (
+                <a
+                  className={styles.linkButton}
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                >
+                  {link.label}
+                  <ExternalLink size={13} className={styles.muted} />
+                </a>
+              ) : (
+                <div className={styles.linkButton}>{link.label}</div>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </Section>
   );
