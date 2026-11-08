@@ -22,7 +22,7 @@ import { describePlan, executeRemoval, planRemoval } from "../src/commands/remov
 import { readManifest, type Manifest } from "../src/lib/manifest.js";
 import { isSafeProjectPath, projectPaths, resolveInside } from "../src/lib/project.js";
 import { defaultsPrompter, type Prompter } from "../src/lib/prompter.js";
-import { UserError } from "../src/lib/ui.js";
+import { UserError } from "../src/errors.js";
 import { repoRoot, tempProject, treeSnapshot } from "./helpers.js";
 
 const pluginRoot = path.join(repoRoot, "plugin");

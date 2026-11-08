@@ -4,6 +4,7 @@ import {
   formatIssuePath,
   type ArchbookConfig,
 } from "@archbook/schema";
+import { UserError } from "../errors.js";
 import { readTextIfExists } from "./fs.js";
 import type { ProjectPaths } from "./project.js";
 
@@ -18,9 +19,7 @@ export function loadConfig(paths: ProjectPaths): ArchbookConfig | undefined {
   try {
     data = JSON.parse(text);
   } catch (error) {
-    throw new Error(`archbook/config.json is not valid JSON: ${(error as Error).message}`, {
-      cause: error,
-    });
+    throw new UserError(`archbook/config.json is not valid JSON: ${(error as Error).message}`);
   }
   const parsed = ArchbookConfigSchema.safeParse(data);
   if (!parsed.success) {
@@ -29,7 +28,7 @@ export function loadConfig(paths: ProjectPaths): ArchbookConfig | undefined {
         (issue) => `  ${formatIssuePath(issue.path as Array<string | number>)}: ${issue.message}`,
       )
       .join("\n");
-    throw new Error(`archbook/config.json is invalid:\n${issues}`);
+    throw new UserError(`archbook/config.json is invalid:\n${issues}`);
   }
   return parsed.data;
 }

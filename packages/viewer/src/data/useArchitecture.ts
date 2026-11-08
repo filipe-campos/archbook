@@ -1,19 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { ARCHITECTURE_FILE, LIVE_RELOAD_META, validateArchitectureText } from "@archbook/schema";
 import {
-  ARCHITECTURE_FILE,
-  LIVE_RELOAD_META,
-  validateArchitectureText,
-  type Architecture,
-  type ValidationIssue,
-} from "@archbook/schema";
+  createRequestSequence,
+  nextLoadState,
+  type LoadResult,
+  type LoadState,
+} from "../lib/loadState";
 
-export type LoadState =
-  | { status: "loading" }
-  | { status: "missing"; message: string }
-  | { status: "invalid"; errors: ValidationIssue[] }
-  | { status: "ready"; architecture: Architecture; warnings: ValidationIssue[]; version: number };
+export type { LoadState } from "../lib/loadState";
 
-export async function loadArchitecture(url: string, version: number): Promise<LoadState> {
+export async function loadArchitecture(url: string): Promise<LoadResult> {
   let response: Response;
   try {
     response = await fetch(url, { cache: "no-store" });
@@ -26,7 +22,7 @@ export async function loadArchitecture(url: string, version: number): Promise<Lo
   // Disk checks (source paths, line ranges) need the file system; `archbook validate` runs them.
   const result = validateArchitectureText(await response.text());
   if (!result.valid || !result.architecture) return { status: "invalid", errors: result.errors };
-  return { status: "ready", architecture: result.architecture, warnings: result.warnings, version };
+  return { status: "ready", architecture: result.architecture, warnings: result.warnings };
 }
 
 function liveReloadUrl(): string | undefined {
@@ -38,19 +34,25 @@ function liveReloadUrl(): string | undefined {
 export function useArchitecture(): LoadState {
   const [state, setState] = useState<LoadState>({ status: "loading" });
 
-  const load = useCallback((version: number) => {
-    void loadArchitecture(`./${ARCHITECTURE_FILE}`, version).then(setState);
-  }, []);
-
   useEffect(() => {
-    let version = 0;
-    load(version);
+    const sequence = createRequestSequence();
+    let active = true;
+    const load = () => {
+      const request = sequence.next();
+      void loadArchitecture(`./${ARCHITECTURE_FILE}`).then((result) => {
+        if (active && sequence.isLatest(request))
+          setState((previous) => nextLoadState(previous, result));
+      });
+    };
+    load();
     const url = liveReloadUrl();
-    if (!url) return;
-    const source = new EventSource(url);
-    source.addEventListener("change", () => load(++version));
-    return () => source.close();
-  }, [load]);
+    const source = url ? new EventSource(url) : undefined;
+    source?.addEventListener("change", load);
+    return () => {
+      active = false;
+      source?.close();
+    };
+  }, []);
 
   return state;
 }

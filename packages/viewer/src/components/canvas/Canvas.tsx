@@ -61,19 +61,25 @@ export function Canvas({
   const [nodes, setNodes, onNodesChange] = useNodesState<CanvasNode>([]);
   const [edges, setEdges] = useState<CanvasEdge[]>([]);
   const [laidOut, setLaidOut] = useState(false);
+  const [layoutError, setLayoutError] = useState<string>();
   const { fitView } = useReactFlow();
   const initialized = useNodesInitialized();
   const fitted = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
-    void layoutArchitecture(architecture).then((layout) => {
-      if (cancelled) return;
-      const elements = buildElements(architecture, layout);
-      setNodes(elements.nodes);
-      setEdges(elements.edges);
-      setLaidOut(true);
-    });
+    layoutArchitecture(architecture)
+      .then((layout) => {
+        if (cancelled) return;
+        const elements = buildElements(architecture, layout);
+        setNodes(elements.nodes);
+        setEdges(elements.edges);
+        setLaidOut(true);
+        setLayoutError(undefined);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setLayoutError(error instanceof Error ? error.message : String(error));
+      });
     return () => {
       cancelled = true;
     };
@@ -135,7 +141,13 @@ export function Canvas({
           </ReactFlow>
         </HighlightContext.Provider>
       </CanvasActionsContext.Provider>
-      {!laidOut && <div className={styles.loading}>Laying out the architecture…</div>}
+      {layoutError ? (
+        <div className={styles.loading} role="alert">
+          Could not lay out the architecture: {layoutError}
+        </div>
+      ) : (
+        !laidOut && <div className={styles.loading}>Laying out the architecture…</div>
+      )}
     </div>
   );
 }

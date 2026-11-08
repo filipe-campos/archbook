@@ -2,7 +2,7 @@ import { formatIssuePath } from "@archbook/schema";
 import { z } from "zod";
 import { readTextIfExists, writeJson } from "./fs.js";
 import { isSafeProjectPath, relativePath, type ProjectPaths } from "./project.js";
-import { UserError } from "./ui.js";
+import { UserError } from "../errors.js";
 
 /** Relative to the project root, with forward slashes. */
 const entryPath = z.string().refine(isSafeProjectPath, {

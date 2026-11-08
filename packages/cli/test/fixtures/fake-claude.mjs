@@ -56,6 +56,16 @@ switch (scenario) {
     write("{ nope");
     succeed();
     break;
+  case "malformed-stream":
+    emit({ type: "assistant" });
+    emit({ type: "assistant", message: {} });
+    emit({ type: "assistant", message: { content: [null] } });
+    emit({ type: "system", subtype: "init", slash_commands: "archbook:generate" });
+    emit({ type: "result", subtype: "success" });
+    process.stdout.write("this line is not JSON\n");
+    write(readFileSync(process.env.FAKE_CLAUDE_DOC, "utf8"));
+    succeed();
+    break;
   case "hang":
     write('{ "partial": ');
     waitForever();

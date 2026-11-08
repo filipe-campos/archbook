@@ -82,3 +82,5 @@ To check the plugin manifests and frontmatter with Claude Code itself: `claude p
 ## Reporting bugs
 
 Open an issue with the command you ran, what you expected, what happened, and, when the bug is about generated content, the relevant part of `archbook/architecture.json` and the output of `npx archbook validate`.
+
+When the CLI prints `Unexpected error`, run the command again with `ARCHBOOK_DEBUG=1` set (for example `ARCHBOOK_DEBUG=1 npx archbook generate`) and include the stack trace it prints.

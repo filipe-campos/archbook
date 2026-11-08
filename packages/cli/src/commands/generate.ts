@@ -4,6 +4,7 @@ import path from "node:path";
 import * as clack from "@clack/prompts";
 import pc from "picocolors";
 import { ArchitectureSchema, diffArchitecture, summarizeDiff } from "@archbook/schema";
+import { UserError } from "../errors.js";
 import { ASSET_PREFIX, PLUGIN_NAME, commandPrompt } from "../lib/assets.js";
 import {
   INSTALL_HINT,
@@ -11,15 +12,15 @@ import {
   createArchbookShim,
   describeToolUse,
   runHeadless,
-  type ResultMessage,
+  type HeadlessRun,
   type StreamMessage,
 } from "../lib/claude.js";
 import { historyLimit, loadConfig } from "../lib/config.js";
-import { readTextIfExists, writeFileAtomic } from "../lib/fs.js";
+import { parseDocumentText, readTextIfExists, writeFileAtomic } from "../lib/fs.js";
 import { hasUncommittedChanges } from "../lib/git.js";
 import { createSnapshot, readSnapshot, restoreSnapshot } from "../lib/history.js";
 import { relativePath, type ProjectPaths } from "../lib/project.js";
-import { UserError, command } from "../lib/ui.js";
+import { command } from "../lib/ui.js";
 import { formatValidation, validateProject } from "../lib/validation.js";
 import { VERSION, cliEntry, pluginDir } from "../package.js";
 import { resolvePaths, type GlobalOptions } from "./basic.js";
@@ -67,15 +68,6 @@ function invocation(paths: ProjectPaths): Invocation {
     ),
   };
 }
-
-const parse = (text: string | null | undefined): unknown => {
-  if (text == null) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-};
 
 interface Progress {
   message: (line: string) => void;
@@ -179,7 +171,7 @@ export async function generateCommand(options: GenerateOptions): Promise<Generat
     }
   };
 
-  let outcome: { code: number | null; result?: ResultMessage; stderr: string };
+  let outcome: Awaited<HeadlessRun["done"]>;
   try {
     current = runHeadless({
       bin,
@@ -208,6 +200,11 @@ export async function generateCommand(options: GenerateOptions): Promise<Generat
       });
       outcome = await current.done;
     }
+  } catch (error) {
+    restore();
+    progress.error("Generation stopped by an unexpected error.");
+    clack.log.warn(`Restored ${file} to its state before generation.`);
+    throw error;
   } finally {
     process.off("SIGINT", onInterrupt);
     options.signal?.removeEventListener("abort", onInterrupt);
@@ -230,6 +227,7 @@ export async function generateCommand(options: GenerateOptions): Promise<Generat
       result?.errors?.join("\n") ||
       result?.result ||
       outcome.stderr.trim().split("\n").slice(-5).join("\n") ||
+      (outcome.handlerError !== undefined ? String(outcome.handlerError) : "") ||
       `exit code ${outcome.code}`;
     clack.log.error(`${reason}\n\nRestored ${file} to its state before generation.`);
     return "failed";
@@ -237,7 +235,7 @@ export async function generateCommand(options: GenerateOptions): Promise<Generat
   progress.success("Claude Code finished.");
 
   const text = readTextIfExists(paths.architecture);
-  const parsed = parse(text);
+  const parsed = parseDocumentText(text);
   if (text === undefined || !ArchitectureSchema.safeParse(parsed).success) {
     // A file that does not even match the schema is worse than the previous one: put that back.
     const kept = path.join(tmpdir(), `archbook-failed-${Date.now()}.json`);
@@ -254,7 +252,7 @@ export async function generateCommand(options: GenerateOptions): Promise<Generat
   }
 
   const validation = validateProject(paths);
-  const changes = summarizeDiff(diffArchitecture(parse(snapshot.content), parsed));
+  const changes = summarizeDiff(diffArchitecture(parseDocumentText(snapshot.content), parsed));
   console.log(formatValidation(validation));
   const cost = result.total_cost_usd !== undefined ? ` · $${result.total_cost_usd.toFixed(2)}` : "";
   const minutes = ` · ${((Date.now() - startedAt) / 60_000).toFixed(1)} min`;

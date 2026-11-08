@@ -86,6 +86,25 @@ describe("generate", () => {
     expect(readFileSync(paths.architecture, "utf8")).toBe(previous);
   });
 
+  it("skips malformed stream messages instead of crashing", async () => {
+    const { root, paths } = setup("malformed-stream", minimalDocument(["api"]));
+    expect(await run(root)).toBe("success");
+    expect(readFileSync(paths.architecture, "utf8")).toBe(minimalDocument(["api", "worker"]));
+  });
+
+  it("does not report an unreadable previous file as created", async () => {
+    const { root } = setup("success", "{ nope");
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    try {
+      expect(await run(root)).toBe("success");
+      const output = write.mock.calls.map(([chunk]) => String(chunk)).join("");
+      expect(output).toMatch(/Changes: /);
+      expect(output).not.toMatch(/file created/);
+    } finally {
+      write.mockRestore();
+    }
+  });
+
   it("never leaves a half-written file when interrupted", async () => {
     const previous = minimalDocument(["api"]);
     const { root, paths } = setup("hang", previous);

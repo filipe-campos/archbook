@@ -28,9 +28,17 @@ export function writeFileAtomic(file: string, content: string | Buffer): void {
   }
 }
 
-export function readJson<T = unknown>(file: string): T | undefined {
-  const text = readTextIfExists(file);
-  return text === undefined ? undefined : (JSON.parse(text) as T);
+/**
+ * Parses a stored architecture document for diffing. A missing file is `null`; unparseable JSON
+ * is `{}` because the file did exist, so a diff must not report it as created.
+ */
+export function parseDocumentText(text: string | null | undefined): unknown {
+  if (text == null) return null;
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return {};
+  }
 }
 
 export function writeJson(file: string, value: unknown): void {

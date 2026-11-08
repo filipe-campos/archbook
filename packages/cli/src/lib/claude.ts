@@ -80,6 +80,43 @@ export type StreamMessage =
 
 export type ResultMessage = Extract<StreamMessage, { type: "result" }>;
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** Checks the fields Archbook reads, so a malformed message is skipped instead of crashing. */
+export function toStreamMessage(value: unknown): StreamMessage | undefined {
+  if (!isRecord(value) || typeof value.type !== "string") return undefined;
+  switch (value.type) {
+    case "system": {
+      if (typeof value.subtype !== "string") return undefined;
+      const commands = value.slash_commands;
+      if (
+        value.subtype === "init" &&
+        commands !== undefined &&
+        !(Array.isArray(commands) && commands.every((name) => typeof name === "string"))
+      ) {
+        return undefined;
+      }
+      return value as StreamMessage;
+    }
+    case "assistant": {
+      const message = value.message;
+      if (!isRecord(message) || !Array.isArray(message.content)) return undefined;
+      return message.content.every((block) => isRecord(block) && typeof block.type === "string")
+        ? (value as StreamMessage)
+        : undefined;
+    }
+    case "user":
+      return value as StreamMessage;
+    case "result":
+      return typeof value.is_error === "boolean" && typeof value.subtype === "string"
+        ? (value as StreamMessage)
+        : undefined;
+    default:
+      return undefined;
+  }
+}
+
 export interface HeadlessRun {
   /** Resolves when the process exits. */
   done: Promise<{
@@ -87,6 +124,8 @@ export interface HeadlessRun {
     signal: NodeJS.Signals | null;
     result?: ResultMessage;
     stderr: string;
+    /** First error thrown by `onMessage`; later messages are still delivered. */
+    handlerError?: unknown;
   }>;
   kill: (signal?: NodeJS.Signals) => void;
 }
@@ -128,6 +167,7 @@ export function runHeadless(options: HeadlessOptions): HeadlessRun {
   });
 
   let result: ResultMessage | undefined;
+  let handlerError: unknown;
   let stderr = "";
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk: string) => {
@@ -135,21 +175,27 @@ export function runHeadless(options: HeadlessOptions): HeadlessRun {
   });
   createInterface({ input: child.stdout }).on("line", (line) => {
     if (!line.trim()) return;
-    let message: StreamMessage;
+    let message: StreamMessage | undefined;
     try {
-      message = JSON.parse(line) as StreamMessage;
+      message = toStreamMessage(JSON.parse(line));
     } catch {
       return;
     }
+    if (!message) return;
     if (message.type === "result") result = message;
-    options.onMessage(message);
+    // An exception here would escape the readline listener and kill the CLI before cleanup.
+    try {
+      options.onMessage(message);
+    } catch (error) {
+      handlerError ??= error;
+    }
   });
 
   const done = new Promise<Awaited<HeadlessRun["done"]>>((resolve) => {
     child.on("error", (error) =>
       resolve({ code: -1, signal: null, stderr: stderr + String(error) }),
     );
-    child.on("close", (code, signal) => resolve({ code, signal, result, stderr }));
+    child.on("close", (code, signal) => resolve({ code, signal, result, stderr, handlerError }));
   });
   return {
     done,
@@ -159,6 +205,9 @@ export function runHeadless(options: HeadlessOptions): HeadlessRun {
   };
 }
 
+/** Quotes a value for POSIX sh, where nothing inside single quotes is special. */
+export const shellQuote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
+
 /**
  * Puts an `archbook` executable that runs this very CLI on PATH, so commands inside the session
  * use the same version the user started, even before it is published or installed globally.
@@ -166,7 +215,10 @@ export function runHeadless(options: HeadlessOptions): HeadlessRun {
 export function createArchbookShim(cliEntry: string): { dir: string; dispose: () => void } {
   const dir = mkdtempSync(path.join(tmpdir(), "archbook-bin-"));
   const node = process.execPath;
-  writeFileSync(path.join(dir, "archbook"), `#!/bin/sh\nexec "${node}" "${cliEntry}" "$@"\n`);
+  writeFileSync(
+    path.join(dir, "archbook"),
+    `#!/bin/sh\nexec ${shellQuote(node)} ${shellQuote(cliEntry)} "$@"\n`,
+  );
   chmodSync(path.join(dir, "archbook"), 0o755);
   writeFileSync(path.join(dir, "archbook.cmd"), `@"${node}" "${cliEntry}" %*\r\n`);
   return { dir, dispose: () => rmSync(dir, { recursive: true, force: true }) };

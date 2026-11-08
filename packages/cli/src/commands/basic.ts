@@ -3,13 +3,21 @@ import { cpSync, existsSync, readdirSync, rmSync, writeFileSync } from "node:fs"
 import path from "node:path";
 import pc from "picocolors";
 import { diffArchitecture, summarizeDiff } from "@archbook/schema";
+import { UserError } from "../errors.js";
 import { historyLimit } from "../lib/config.js";
-import { readTextIfExists } from "../lib/fs.js";
+import { parseDocumentText, readTextIfExists } from "../lib/fs.js";
 import { hasUncommittedChanges } from "../lib/git.js";
-import { createSnapshot, listSnapshots, readSnapshot, undo } from "../lib/history.js";
+import {
+  SNAPSHOT_OPERATIONS,
+  WARN_UNCOMMITTED_OPERATIONS,
+  createSnapshot,
+  listSnapshots,
+  readSnapshot,
+  undo,
+} from "../lib/history.js";
 import { findProjectRoot, projectPaths, relativePath, type ProjectPaths } from "../lib/project.js";
 import { startDevServer } from "../lib/server.js";
-import { UserError, command, relativeTime, table } from "../lib/ui.js";
+import { command, relativeTime, table } from "../lib/ui.js";
 import { formatValidation, validateProject, validationJson } from "../lib/validation.js";
 import { VERSION, viewerDir } from "../package.js";
 
@@ -20,16 +28,10 @@ export interface GlobalOptions {
 export const resolvePaths = (options: GlobalOptions): ProjectPaths =>
   projectPaths(findProjectRoot(options.cwd));
 
-const isoNow = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
+const listInWords = (items: readonly string[]) =>
+  items.length < 2 ? items.join("") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 
-const parseOrNull = (text: string | null | undefined): unknown => {
-  if (text == null) return null;
-  try {
-    return JSON.parse(text);
-  } catch {
-    return {};
-  }
-};
+const isoNow = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
 
 export function validateCommand(
   options: GlobalOptions & { json?: boolean; file?: string },
@@ -55,7 +57,7 @@ export function validateCommand(
 export function snapshotCommand(options: GlobalOptions & { op: string }): number {
   const paths = resolvePaths(options);
   if (
-    ["generate", "sync"].includes(options.op) &&
+    WARN_UNCOMMITTED_OPERATIONS.includes(options.op) &&
     hasUncommittedChanges(paths.root, paths.architecture)
   ) {
     console.warn(
@@ -86,7 +88,9 @@ export function historyCommand(options: GlobalOptions & { json?: boolean }): num
   let newer = readTextIfExists(paths.architecture) ?? null;
   const entries = snapshots.map((meta) => {
     const content = readSnapshot(paths, meta.id).content;
-    const summary = summarizeDiff(diffArchitecture(parseOrNull(content), parseOrNull(newer)));
+    const summary = summarizeDiff(
+      diffArchitecture(parseDocumentText(content), parseDocumentText(newer)),
+    );
     newer = content;
     return { ...meta, changes: summary };
   });
@@ -97,7 +101,7 @@ export function historyCommand(options: GlobalOptions & { json?: boolean }): num
   }
   if (entries.length === 0) {
     console.log(
-      "No snapshots yet. They are saved automatically before generate, sync, add-flow and explain.",
+      `No snapshots yet. They are saved automatically before ${listInWords(SNAPSHOT_OPERATIONS)}.`,
     );
     return 0;
   }
@@ -128,7 +132,7 @@ export function undoCommand(options: GlobalOptions & { to?: string }): number {
   }
   const file = relativePath(paths.root, paths.architecture);
   const summary = summarizeDiff(
-    diffArchitecture(parseOrNull(result.before), parseOrNull(result.after)),
+    diffArchitecture(parseDocumentText(result.before), parseDocumentText(result.after)),
   );
   if (result.after === null) {
     console.log(
@@ -149,7 +153,7 @@ export function undoCommand(options: GlobalOptions & { to?: string }): number {
 }
 
 export async function devCommand(
-  options: GlobalOptions & { port: string; host?: string; open?: boolean },
+  options: GlobalOptions & { port: number; host?: string; open?: boolean },
 ): Promise<number> {
   const paths = resolvePaths(options);
   if (!existsSync(paths.dir)) {
@@ -169,7 +173,7 @@ export async function devCommand(
   const server = await startDevServer({
     viewerDir: viewerDir(),
     architectureFile: paths.architecture,
-    port: Number(options.port),
+    port: options.port,
     host: options.host,
     onChange: () => {
       console.log(

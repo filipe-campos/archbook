@@ -1,4 +1,4 @@
-import { Command, Option } from "commander";
+import { Command, InvalidArgumentError, Option } from "commander";
 import pc from "picocolors";
 import {
   buildCommand,
@@ -12,9 +12,20 @@ import {
 import { generateCommand, generateExitCode } from "./commands/generate.js";
 import { initCommand } from "./commands/init.js";
 import { removeCommand } from "./commands/remove.js";
-import { CancelledError, clackPrompter, defaultsPrompter } from "./lib/prompter.js";
-import { UserError } from "./lib/ui.js";
+import { CancelledError, UserError } from "./errors.js";
+import { clackPrompter, defaultsPrompter } from "./lib/prompter.js";
+import { SNAPSHOT_OPERATIONS } from "./lib/history.js";
 import { VERSION } from "./package.js";
+
+const DEBUG_ENV = "ARCHBOOK_DEBUG";
+
+function parsePort(value: string): number {
+  const port = Number(value);
+  if (!/^\d+$/.test(value) || port < 1 || port > 65535) {
+    throw new InvalidArgumentError("Expected a whole number from 1 to 65535.");
+  }
+  return port;
+}
 
 const interactiveTerminal = () => Boolean(process.stdin.isTTY && process.stdout.isTTY);
 
@@ -69,7 +80,7 @@ export function createProgram(): Command {
   program
     .command("dev")
     .description("Serve the viewer with live reload")
-    .option("-p, --port <port>", "port", "4400")
+    .option("-p, --port <port>", "port", parsePort, 4400)
     .option("--host <host>", "host to bind", "localhost")
     .option("-o, --open", "open the browser")
     .action(run((command) => devCommand({ ...globals(command), ...command.opts() })));
@@ -117,7 +128,11 @@ export function createProgram(): Command {
     .description(
       "Save architecture.json before an operation changes it (used by the Claude Code commands)",
     )
-    .addOption(new Option("--op <operation>", "operation name").makeOptionMandatory())
+    .addOption(
+      new Option("--op <operation>", "operation name")
+        .choices(SNAPSHOT_OPERATIONS)
+        .makeOptionMandatory(),
+    )
     .action(run((command) => snapshotCommand({ ...globals(command), ...command.opts() })));
 
   program.hook("postAction", () => {
@@ -137,7 +152,10 @@ export async function main(argv = process.argv): Promise<void> {
       console.error(`${pc.red("✖")} ${error.message}`);
       process.exitCode = error.exitCode;
     } else {
-      console.error(error);
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(`${pc.red("✖")} Unexpected error: ${message}`);
+      if (process.env[DEBUG_ENV] === "1") console.error(error);
+      else console.error(pc.dim(`Set ${DEBUG_ENV}=1 to see the stack trace.`));
       process.exitCode = 1;
     }
   }

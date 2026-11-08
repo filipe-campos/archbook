@@ -21,7 +21,7 @@ Archbook is the Storybook of architecture. It gives your project:
 
 ## Quick start
 
-You need Node.js 20+ and [Claude Code](https://docs.claude.com/en/docs/claude-code) (for generation).
+You need Node.js 20.12+ and [Claude Code](https://docs.claude.com/en/docs/claude-code) (for generation).
 
 ```sh
 npx archbook init       # a few questions; installs the Claude Code commands in .claude/

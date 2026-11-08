@@ -1,10 +1,5 @@
 import * as clack from "@clack/prompts";
-
-export class CancelledError extends Error {
-  constructor() {
-    super("Cancelled.");
-  }
-}
+import { CancelledError } from "../errors.js";
 
 export interface Choice<T extends string> {
   value: T;

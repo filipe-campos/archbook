@@ -1,15 +1,5 @@
 import pc from "picocolors";
 
-/** Errors whose message is meant for the user, printed without a stack trace. */
-export class UserError extends Error {
-  constructor(
-    message: string,
-    readonly exitCode = 1,
-  ) {
-    super(message);
-  }
-}
-
 export function relativeTime(iso: string, now = new Date()): string {
   const seconds = Math.round((now.getTime() - new Date(iso).getTime()) / 1000);
   if (seconds < 45) return "just now";

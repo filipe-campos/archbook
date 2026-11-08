@@ -1,0 +1,41 @@
+.banner {
+  position: fixed;
+  bottom: 16px;
+  left: 50%;
+  z-index: 50;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  width: min(560px, calc(100% - 32px));
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warning);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  font-size: 13px;
+}
+
+.icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--warning);
+}
+
+.title {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+.lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.more {
+  margin: 4px 0 0;
+  color: var(--text-muted);
+}

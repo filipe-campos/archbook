@@ -1,28 +1,34 @@
 import { mkdirSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
-import { readJson, readTextIfExists, sha256, writeFileAtomic, writeJson } from "./fs.js";
+import { z } from "zod";
+import { UserError } from "../errors.js";
+import { readTextIfExists, sha256, writeFileAtomic, writeJson } from "./fs.js";
 import type { ProjectPaths } from "./project.js";
 
-export interface SnapshotMeta {
-  id: string;
-  operation: string;
-  createdAt: string;
-  archbookVersion: string;
-  /** False when architecture.json did not exist; restoring such a snapshot deletes the file. */
-  existed: boolean;
-  hash: string | null;
-}
+/** Operations the Claude Code commands snapshot before; `undo` snapshots internally too. */
+export const SNAPSHOT_OPERATIONS = ["generate", "sync", "add-flow", "explain"] as const;
 
-export interface Snapshot extends SnapshotMeta {
-  /** Exact bytes of architecture.json at snapshot time, or null when it did not exist. */
-  content: string | null;
-}
-
-interface SnapshotFile extends Snapshot {
-  archbookSnapshot: 1;
-}
+/** Operations that rewrite the whole document, so uncommitted edits are worth a warning. */
+export const WARN_UNCOMMITTED_OPERATIONS: readonly string[] = ["generate", "sync"];
 
 const OPERATION = /^[a-z][a-z0-9-]{0,40}$/;
+
+const SnapshotFileSchema = z.object({
+  archbookSnapshot: z.literal(1),
+  id: z.string(),
+  operation: z.string(),
+  createdAt: z.string(),
+  archbookVersion: z.string(),
+  /** False when architecture.json did not exist; restoring such a snapshot deletes the file. */
+  existed: z.boolean(),
+  hash: z.string().nullable(),
+  /** Exact bytes of architecture.json at snapshot time, or null when it did not exist. */
+  content: z.string().nullable(),
+});
+
+type SnapshotFile = z.infer<typeof SnapshotFileSchema>;
+export type Snapshot = Omit<SnapshotFile, "archbookSnapshot">;
+export type SnapshotMeta = Omit<Snapshot, "content">;
 
 export function contentHash(content: string | undefined | null): string | null {
   return content == null ? null : sha256(content);
@@ -42,10 +48,18 @@ function snapshotFile(paths: ProjectPaths, id: string) {
 }
 
 export function readSnapshot(paths: ProjectPaths, id: string): Snapshot {
-  const data = readJson<SnapshotFile>(snapshotFile(paths, id));
-  if (!data || data.archbookSnapshot !== 1)
-    throw new Error(`Snapshot "${id}" is missing or unreadable.`);
-  const { archbookSnapshot: _format, ...snapshot } = data;
+  const unreadable = () => new UserError(`Snapshot "${id}" is missing or unreadable.`);
+  const text = readTextIfExists(snapshotFile(paths, id));
+  if (text === undefined) throw unreadable();
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw unreadable();
+  }
+  const parsed = SnapshotFileSchema.safeParse(data);
+  if (!parsed.success) throw unreadable();
+  const { archbookSnapshot: _format, ...snapshot } = parsed.data;
   return snapshot;
 }
 
@@ -91,7 +105,7 @@ export function createSnapshot(
   options: CreateSnapshotOptions,
 ): CreateSnapshotResult {
   if (!OPERATION.test(options.operation)) {
-    throw new Error(
+    throw new UserError(
       `Invalid operation name "${options.operation}". Use lowercase letters, digits and hyphens.`,
     );
   }
@@ -136,8 +150,10 @@ export function resolveSnapshot(paths: ProjectPaths, idOrPrefix: string): Snapsh
   const matches = all.filter((snapshot) => snapshot.id.startsWith(idOrPrefix));
   if (matches.length === 1) return matches[0]!;
   if (matches.length === 0)
-    throw new Error(`No snapshot matches "${idOrPrefix}". Run "archbook history" to list them.`);
-  throw new Error(
+    throw new UserError(
+      `No snapshot matches "${idOrPrefix}". Run "archbook history" to list them.`,
+    );
+  throw new UserError(
     `"${idOrPrefix}" matches ${matches.length} snapshots; use more characters of the id.`,
   );
 }

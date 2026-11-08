@@ -3,14 +3,15 @@ import { existsSync, readdirSync, rmSync, rmdirSync } from "node:fs";
 import path from "node:path";
 import * as clack from "@clack/prompts";
 import pc from "picocolors";
+import { CancelledError, UserError } from "../errors.js";
 import { ASSET_PREFIX, PLUGIN_NAME } from "../lib/assets.js";
 import { backupFiles } from "../lib/backup.js";
 import { readTextIfExists, sha256, writeFileAtomic } from "../lib/fs.js";
 import { readManifest } from "../lib/manifest.js";
 import { ARCHBOOK_DIR, relativePath, resolveInside, type ProjectPaths } from "../lib/project.js";
-import { CancelledError, type Prompter } from "../lib/prompter.js";
+import type { Prompter } from "../lib/prompter.js";
 import { removeAppendedText } from "../lib/textBlock.js";
-import { UserError, bullet, command } from "../lib/ui.js";
+import { bullet, command } from "../lib/ui.js";
 import { resolvePaths, type GlobalOptions } from "./basic.js";
 
 export type RemovalGroup = "docs" | "assets" | "changes";

@@ -1,4 +1,8 @@
+import { spawnSync } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { createArchbookShim, toStreamMessage } from "../src/lib/claude.js";
 import { detectStack, projectDefaults } from "../src/lib/detect.js";
 import { normalizeRemoteUrl } from "../src/lib/git.js";
 import { removeAppendedText, textToAppend } from "../src/lib/textBlock.js";
@@ -93,5 +97,53 @@ describe("ui helpers", () => {
         ["ccc", "d", "e"],
       ]),
     ).toBe("a    bb  c\nccc  d   e");
+  });
+});
+
+describe("createArchbookShim", () => {
+  it.skipIf(process.platform === "win32")(
+    "runs the CLI entry even when its path has spaces, quotes and $",
+    () => {
+      const root = tempProject({ "it's a $HOME `dir`/entry.mjs": "" });
+      const entry = path.join(root, "it's a $HOME `dir`/entry.mjs");
+      writeFileSync(entry, 'console.log(["ok", ...process.argv.slice(2)].join(" "));\n');
+      const shim = createArchbookShim(entry);
+      try {
+        const result = spawnSync(path.join(shim.dir, "archbook"), ["--version", "a b"], {
+          encoding: "utf8",
+        });
+        expect(result.stderr).toBe("");
+        expect(result.stdout).toBe("ok --version a b\n");
+      } finally {
+        shim.dispose();
+      }
+    },
+  );
+});
+
+describe("toStreamMessage", () => {
+  it("keeps well-formed messages", () => {
+    const assistant = { type: "assistant", message: { content: [{ type: "text", text: "hi" }] } };
+    expect(toStreamMessage(assistant)).toBe(assistant);
+    expect(
+      toStreamMessage({ type: "system", subtype: "init", slash_commands: ["a"] }),
+    ).toBeDefined();
+    expect(toStreamMessage({ type: "result", subtype: "success", is_error: false })).toBeDefined();
+  });
+
+  it.each([
+    null,
+    "text",
+    [],
+    { type: 1 },
+    { type: "assistant" },
+    { type: "assistant", message: {} },
+    { type: "assistant", message: { content: [null] } },
+    { type: "system" },
+    { type: "system", subtype: "init", slash_commands: [1] },
+    { type: "result", subtype: "success" },
+    { type: "unknown" },
+  ])("drops %j", (value) => {
+    expect(toStreamMessage(value)).toBeUndefined();
   });
 });

@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { UserError } from "../src/errors.js";
 import { sha256 } from "../src/lib/fs.js";
 import {
   createSnapshot,
@@ -87,6 +88,35 @@ describe("snapshots", () => {
     });
     expect(resolveSnapshot(paths, "20261108-1000").id).toBe(snapshot.id);
     expect(() => resolveSnapshot(paths, "1999")).toThrow(/No snapshot/);
+    expect(() => resolveSnapshot(paths, "1999")).toThrow(UserError);
+  });
+
+  it("rejects snapshot files with the wrong shape, and lists only valid ones", () => {
+    const paths = setup(minimalDocument());
+    const { snapshot } = createSnapshot(paths, {
+      operation: "generate",
+      version: VERSION,
+      limit: 20,
+      now: at(1),
+    });
+    mkdirSync(paths.history, { recursive: true });
+    const broken = {
+      archbookSnapshot: 1,
+      id: "20261108-100002-000-sync",
+      operation: "sync",
+      createdAt: at(2).toISOString(),
+      archbookVersion: VERSION,
+      existed: "yes",
+      hash: null,
+      content: 42,
+    };
+    writeFileSync(`${paths.history}/${broken.id}.json`, JSON.stringify(broken));
+    writeFileSync(`${paths.history}/not-json.json`, "{ nope");
+
+    expect(() => readSnapshot(paths, broken.id)).toThrow(UserError);
+    expect(() => readSnapshot(paths, "not-json")).toThrow(/missing or unreadable/);
+    expect(() => readSnapshot(paths, "absent")).toThrow(UserError);
+    expect(listSnapshots(paths).map((meta) => meta.id)).toEqual([snapshot.id]);
   });
 });
 
