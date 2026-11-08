@@ -89,11 +89,11 @@ jobs:
     runs-on: ubuntu-latest
     environment: github-pages
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: npx archbook build
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with: { path: archbook/dist }
-      - uses: actions/deploy-pages@v4
+      - uses: actions/deploy-pages@v5
 ```
 
 ## Roadmap
