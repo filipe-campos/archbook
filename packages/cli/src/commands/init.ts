@@ -1,53 +1,25 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { existsSync } from "node:fs";
 import path from "node:path";
-import * as clack from "@clack/prompts";
 import pc from "picocolors";
 import {
-  ArchbookConfigSchema,
-  DEFAULT_HISTORY_LIMIT,
   DEFAULT_IGNORE,
   HttpUrlSchema,
+  LanguageTagSchema,
   type ArchbookConfig,
   type Audience,
   type DetailLevel,
-  type DetectedSignal,
 } from "@archbook/schema";
-import { planAssets, type Asset } from "../lib/assets.js";
-import { claudeVersion, INSTALL_HINT } from "../lib/claude.js";
-import { CONFIG_SCHEMA_URL, loadConfig } from "../lib/config.js";
-import { detectStack, projectDefaults } from "../lib/detect.js";
-import { readTextIfExists, sha256, writeFileAtomic, writeJson } from "../lib/fs.js";
-import { gitDefaultBranch, gitRemoteUrl } from "../lib/git.js";
-import { ManifestRecorder } from "../lib/manifest.js";
-import { ARCHBOOK_DIR, projectPaths, resolveInside, type ProjectPaths } from "../lib/project.js";
-import type { Prompter } from "../lib/prompter.js";
-import { GITIGNORE_HEADER, GITIGNORE_LINES, textToAppend } from "../lib/textBlock.js";
-import { bullet, command } from "../lib/ui.js";
-import { VERSION, pluginDir } from "../package.js";
-import type { GlobalOptions } from "./basic.js";
-
-export interface InitAnswers {
-  name: string;
-  description: string;
-  audience: Audience;
-  language: string;
-  detailLevel: DetailLevel;
-  flows: string[];
-  externalContext?: string;
-  ignore: string[];
-  repoUrl?: string;
-  defaultBranch: string;
-}
-
-export interface InstallReport {
-  configWritten: boolean;
-  created: string[];
-  updated: string[];
-  replaced: string[];
-  skipped: string[];
-  unchanged: string[];
-  gitignore: "added" | "present";
-}
+import { projectCommand } from "../core/assets.js";
+import { loadConfig } from "../core/config.js";
+import { detectStack, projectDefaults } from "../core/detect.js";
+import { buildConfig, performInit, type InitAnswers } from "../core/install.js";
+import { projectPaths } from "../core/project.js";
+import { GITIGNORE_LINES } from "../core/textBlock.js";
+import { INSTALL_HINT, claudeVersion } from "../io/claude.js";
+import { gitDefaultBranch, gitRemoteUrl } from "../io/git.js";
+import type { Prompter } from "../io/prompter.js";
+import { bullet, command } from "../ui/format.js";
+import type { CommandContext } from "./context.js";
 
 const LANGUAGES = [
   { value: "en", label: "English" },
@@ -98,10 +70,7 @@ export async function askQuestions(prompter: Prompter, root: string): Promise<In
     language = await prompter.text({
       message: "Language code (BCP 47, e.g. fr, de, ja)",
       defaultValue: "en",
-      validate: (value) =>
-        /^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/.test(value.trim())
-          ? undefined
-          : "Use a code like fr or pt-BR",
+      validate: (value) => LanguageTagSchema.safeParse(value.trim()).error?.issues[0]?.message,
     });
   }
   const detailLevel = await prompter.select<DetailLevel>({
@@ -160,155 +129,24 @@ export async function askQuestions(prompter: Prompter, root: string): Promise<In
   };
 }
 
-export function buildConfig(answers: InitAnswers, detected: DetectedSignal[]): ArchbookConfig {
-  return ArchbookConfigSchema.parse({
-    $schema: CONFIG_SCHEMA_URL,
-    version: "0.1",
-    project: {
-      name: answers.name,
-      description: answers.description,
-      ...(answers.repoUrl ? { repoUrl: answers.repoUrl } : {}),
-      defaultBranch: answers.defaultBranch,
-    },
-    audience: answers.audience,
-    language: answers.language,
-    detailLevel: answers.detailLevel,
-    flows: answers.flows,
-    ...(answers.externalContext ? { externalContext: answers.externalContext } : {}),
-    ignore: answers.ignore,
-    detected,
-    history: { limit: DEFAULT_HISTORY_LIMIT },
-  });
-}
-
-/** Creates each missing directory between the root and `relativeDir`, recording the new ones. */
-function ensureDirectory(root: string, relativeDir: string, recorder: ManifestRecorder): void {
-  let current = "";
-  for (const segment of relativeDir.split("/").filter(Boolean)) {
-    current = current ? `${current}/${segment}` : segment;
-    const absolute = path.join(root, current);
-    if (!existsSync(absolute)) {
-      mkdirSync(absolute);
-      recorder.record({ path: current, change: "created-dir" });
-    }
-  }
-}
-
-async function installAsset(
-  root: string,
-  asset: Asset,
-  recorder: ManifestRecorder,
-  prompter: Prompter,
-  report: InstallReport,
-): Promise<void> {
-  const absolute = resolveInside(root, asset.target);
-  const hash = sha256(asset.content);
-  const existing = readTextIfExists(absolute);
-  const entry = recorder.get(asset.target);
-
-  if (existing === undefined) {
-    ensureDirectory(root, path.posix.dirname(asset.target), recorder);
-    writeFileAtomic(absolute, asset.content);
-    recorder.record({ path: asset.target, change: "created", hash });
-    report.created.push(asset.target);
-    return;
-  }
-  if (existing === asset.content) {
-    report.unchanged.push(asset.target);
-    return;
-  }
-  const ours = entry && (entry.change === "created" || entry.change === "replaced");
-  if (ours && sha256(existing) === entry.hash) {
-    writeFileAtomic(absolute, asset.content);
-    recorder.record({ path: asset.target, change: "created", hash });
-    report.updated.push(asset.target);
-    return;
-  }
-  const overwrite =
-    prompter.interactive &&
-    (await prompter.confirm({
-      message: `${asset.target} already exists with different content. Overwrite it?`,
-      initialValue: false,
-    }));
-  if (!overwrite) {
-    report.skipped.push(asset.target);
-    return;
-  }
-  writeFileAtomic(absolute, asset.content);
-  recorder.record(
-    ours
-      ? { path: asset.target, change: "created", hash }
-      : { path: asset.target, change: "replaced", hash, original: existing },
-  );
-  report.replaced.push(asset.target);
-}
-
-/** Writes the config, copies the Claude Code assets and updates .gitignore, recording everything. */
-export async function performInit(
-  paths: ProjectPaths,
-  config: ArchbookConfig | undefined,
-  prompter: Prompter,
-  options: { pluginRoot?: string } = {},
-): Promise<InstallReport> {
-  const recorder = new ManifestRecorder(paths, VERSION);
-  const report: InstallReport = {
-    configWritten: false,
-    created: [],
-    updated: [],
-    replaced: [],
-    skipped: [],
-    unchanged: [],
-    gitignore: "present",
-  };
-
-  ensureDirectory(paths.root, ARCHBOOK_DIR, recorder);
-  if (config) {
-    writeJson(paths.config, config);
-    report.configWritten = true;
-  }
-
-  for (const asset of planAssets(options.pluginRoot ?? pluginDir())) {
-    await installAsset(paths.root, asset, recorder, prompter, report);
-  }
-
-  const gitignore = path.join(paths.root, ".gitignore");
-  const before = readTextIfExists(gitignore);
-  const appended = textToAppend(before, GITIGNORE_LINES, GITIGNORE_HEADER);
-  if (appended) {
-    const content = (before ?? "") + appended;
-    writeFileAtomic(gitignore, content);
-    recorder.record({
-      path: ".gitignore",
-      change: "modified",
-      hash: sha256(content),
-      appended,
-      createdFile: before === undefined,
-    });
-    report.gitignore = "added";
-  }
-
-  recorder.save();
-  return report;
-}
-
-export interface InitCommandOptions extends GlobalOptions {
+export interface InitCommandOptions {
   yes?: boolean;
   generate?: boolean;
 }
 
 export async function initCommand(
   options: InitCommandOptions,
-  prompter: Prompter,
+  { cwd, prompter, output }: CommandContext,
   runGeneration: () => Promise<number>,
 ): Promise<number> {
-  const root = path.resolve(options.cwd);
+  const root = path.resolve(cwd);
   const paths = projectPaths(root);
-  clack.intro(pc.bgMagenta(pc.white(" archbook init ")));
+  output.intro(pc.bgMagenta(pc.white(" archbook init ")));
 
   const claude = claudeVersion();
-  if (claude) clack.log.success(`Claude Code found (${claude}).`);
+  if (claude) output.success(`Claude Code found (${claude}).`);
   else {
-    clack.log.warn(
+    output.warn(
       `Claude Code is not installed. Install it with ${command(INSTALL_HINT)} to generate the docs.\n` +
         "You can continue: the commands are installed now and you can run them later.",
     );
@@ -322,7 +160,7 @@ export async function initCommand(
     }
   })();
   const detected = detectStack(root, existingConfig?.ignore ?? DEFAULT_IGNORE);
-  clack.note(
+  output.note(
     detected.length
       ? detected
           .map((signal) => `${pc.bold(signal.name)} ${pc.dim(signal.files.slice(0, 3).join(", "))}`)
@@ -340,7 +178,15 @@ export async function initCommand(
     }));
   if (!reuse) config = buildConfig(await askQuestions(prompter, root), detected);
 
-  const report = await performInit(paths, config, prompter);
+  const report = await performInit(paths, config, {
+    confirmOverwrite: prompter.interactive
+      ? (file) =>
+          prompter.confirm({
+            message: `${file} already exists with different content. Overwrite it?`,
+            initialValue: false,
+          })
+      : undefined,
+  });
   const lines = [
     report.configWritten
       ? bullet("archbook/config.json")
@@ -353,9 +199,9 @@ export async function initCommand(
       : "",
     bullet(`archbook/.manifest.json ${pc.dim("(what to undo on archbook remove)")}`),
   ].filter(Boolean);
-  clack.note(lines.join("\n"), "Installed");
+  output.note(lines.join("\n"), "Installed");
   if (report.skipped.length) {
-    clack.log.warn(`Kept your existing version of:\n${report.skipped.map(bullet).join("\n")}`);
+    output.warn(`Kept your existing version of:\n${report.skipped.map(bullet).join("\n")}`);
   }
 
   const wantsGeneration = options.yes
@@ -370,14 +216,14 @@ export async function initCommand(
   let exitCode = 0;
   if (wantsGeneration) exitCode = await runGeneration();
 
-  clack.outro(
+  output.outro(
     [
       "Next steps:",
       wantsGeneration
         ? ""
-        : `  ${command("npx archbook generate")}   generate the docs with Claude Code (or /archbook-generate inside Claude Code)`,
+        : `  ${command("npx archbook generate")}   generate the docs with Claude Code (or ${projectCommand("generate")} inside Claude Code)`,
       `  ${command("npx archbook dev")}        open the viewer with live reload`,
-      `  ${command("/archbook-add-flow")} ${pc.dim("<flow>")}  document another flow; ${command("/archbook-sync")} after code changes`,
+      `  ${command(projectCommand("add-flow"))} ${pc.dim("<flow>")}  document another flow; ${command(projectCommand("sync"))} after code changes`,
       `  Edit ${command("archbook/architecture.json")} by hand any time; ${command("npx archbook validate")} checks it.`,
     ]
       .filter(Boolean)

@@ -1,12 +1,12 @@
-import pc from "picocolors";
 import {
   formatIssuePath,
+  ISSUE_CODES,
   validateArchitectureText,
   type ValidationIssue,
   type ValidationResult,
 } from "@archbook/schema";
 import { createFileSystemIndex } from "@archbook/schema/node";
-import { readTextIfExists } from "./fs.js";
+import { readTextIfExists } from "../io/fs.js";
 import { relativePath, type ProjectPaths } from "./project.js";
 
 export interface ProjectValidation extends ValidationResult {
@@ -25,7 +25,7 @@ export function validateProject(paths: ProjectPaths, file = paths.architecture):
       valid: false,
       errors: [
         {
-          severity: "error",
+          severity: ISSUE_CODES["invalid-json"].severity,
           code: "invalid-json",
           message: `${display} does not exist.`,
           path: [],
@@ -63,34 +63,4 @@ export function validationJson(result: ProjectValidation) {
         }
       : {}),
   };
-}
-
-const plural = (count: number, word: string) => `${count} ${word}${count === 1 ? "" : "s"}`;
-
-export function formatValidation(result: ProjectValidation): string {
-  const lines: string[] = [];
-  const doc = result.architecture;
-  if (result.valid) {
-    const stats = doc
-      ? ` (${plural(doc.nodes.length, "node")}, ${plural(doc.edges.length, "edge")}, ${plural(doc.flows.length, "flow")})`
-      : "";
-    lines.push(`${pc.green("✔")} ${result.file} is valid${stats}`);
-  } else {
-    const counts = [
-      plural(result.errors.length, "error"),
-      result.warnings.length ? plural(result.warnings.length, "warning") : "",
-    ]
-      .filter(Boolean)
-      .join(", ");
-    lines.push(`${pc.red("✖")} ${result.file}: ${counts}`);
-  }
-  const issueLine = (issue: ValidationIssue) => {
-    const label = issue.severity === "error" ? pc.red("error  ") : pc.yellow("warning");
-    const where = issue.path.length ? `${pc.cyan(formatIssuePath(issue.path))} ` : "";
-    return `  ${label} ${where}${issue.message} ${pc.dim(`(${issue.code})`)}`;
-  };
-  lines.push(...result.errors.map(issueLine), ...result.warnings.map(issueLine));
-  if (result.valid && result.warnings.length)
-    lines.push(pc.dim(`  ${plural(result.warnings.length, "warning")}; the file still renders.`));
-  return lines.join("\n");
 }

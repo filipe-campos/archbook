@@ -11,18 +11,12 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import {
-  askQuestions,
-  buildConfig,
-  parseLines,
-  performInit,
-  type InitAnswers,
-} from "../src/commands/init.js";
-import { describePlan, executeRemoval, planRemoval } from "../src/commands/remove.js";
-import { readManifest, type Manifest } from "../src/lib/manifest.js";
-import { isSafeProjectPath, projectPaths, resolveInside } from "../src/lib/project.js";
-import { defaultsPrompter, type Prompter } from "../src/lib/prompter.js";
+import { buildConfig, performInit, type InitAnswers } from "../src/core/install.js";
+import { executeRemoval, planRemoval } from "../src/core/removal.js";
+import { readManifest, type Manifest } from "../src/core/manifest.js";
+import { isSafeProjectPath, projectPaths, resolveInside } from "../src/core/project.js";
 import { UserError } from "../src/errors.js";
+import { describePlan } from "../src/ui/removal.js";
 import { repoRoot, tempProject, treeSnapshot } from "./helpers.js";
 
 const pluginRoot = path.join(repoRoot, "plugin");
@@ -48,9 +42,12 @@ const USER_FILES = {
   "src/index.ts": "console.log('hi');\n",
 };
 
-async function install(root: string, prompter: Prompter = defaultsPrompter) {
+async function install(root: string, confirmOverwrite?: (file: string) => Promise<boolean>) {
   const paths = projectPaths(root);
-  const report = await performInit(paths, buildConfig(answers, []), prompter, { pluginRoot });
+  const report = await performInit(paths, buildConfig(answers, []), {
+    pluginRoot,
+    confirmOverwrite,
+  });
   return { paths, report };
 }
 
@@ -108,42 +105,9 @@ describe("init", () => {
     );
 
     const confirm = vi.fn(async () => true);
-    const { report: second } = await install(root, {
-      ...defaultsPrompter,
-      interactive: true,
-      confirm,
-    });
+    const { report: second } = await install(root, confirm);
     expect(confirm).toHaveBeenCalledOnce();
     expect(second.replaced).toEqual([".claude/commands/archbook-generate.md"]);
-  });
-
-  it("accepts only http(s) repository URLs", async () => {
-    let validate: ((value: string) => string | undefined) | undefined;
-    await askQuestions(
-      {
-        ...defaultsPrompter,
-        text: async (options) => {
-          if (options.message.startsWith("Repository URL")) validate = options.validate;
-          return options.defaultValue ?? "";
-        },
-      },
-      tempProject(),
-    );
-    expect(validate).toBeDefined();
-    for (const value of ["", "https://github.com/o/r", "http://localhost:8080/repo"]) {
-      expect(validate!(value)).toBeUndefined();
-    }
-    for (const value of ["javascript:alert(1)", "data:text/html,x", "file:///repo", "github.com"]) {
-      expect(validate!(value)).toMatch(/http or https/);
-    }
-  });
-
-  it("parses free-text lists", () => {
-    expect(parseLines("- checkout\n\n2. user signup\n  * Stripe webhook  \n")).toEqual([
-      "checkout",
-      "user signup",
-      "Stripe webhook",
-    ]);
   });
 });
 
@@ -211,11 +175,7 @@ describe("remove", () => {
   it("restores a user file that init was allowed to overwrite", async () => {
     const root = tempProject({ ...USER_FILES, ".claude/commands/archbook-generate.md": "mine\n" });
     const before = treeSnapshot(root);
-    const { paths } = await install(root, {
-      ...defaultsPrompter,
-      interactive: true,
-      confirm: async () => true,
-    });
+    const { paths } = await install(root, async () => true);
     await executeRemoval(paths, planRemoval(paths), { backupDir });
     expect(treeSnapshot(root)).toEqual(before);
   });

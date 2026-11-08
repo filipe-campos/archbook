@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { UserError } from "../src/errors.js";
-import { sha256 } from "../src/lib/fs.js";
+import { sha256 } from "../src/io/fs.js";
 import {
   createSnapshot,
   listSnapshots,
@@ -9,8 +9,8 @@ import {
   readSnapshot,
   resolveSnapshot,
   undo,
-} from "../src/lib/history.js";
-import { projectPaths } from "../src/lib/project.js";
+} from "../src/core/history.js";
+import { projectPaths } from "../src/core/project.js";
 import { MINIMAL_SOURCES, minimalDocument, tempProject } from "./helpers.js";
 
 const VERSION = "0.0.0-test";

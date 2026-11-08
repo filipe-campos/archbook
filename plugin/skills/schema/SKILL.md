@@ -21,7 +21,7 @@ description: Specification of archbook/architecture.json (Archbook schema 0.1) a
   version: "0.1",
   project: { name: string, description?: string = "", repoUrl?: URL /* absolute http(s) URL */, defaultBranch?: string = "main" },
   audience?: "developers" | "stakeholders" | "mixed" = "developers",
-  language?: string = "en",          // language tag of all prose, e.g. "en", "pt-BR"
+  language?: string = "en",          // BCP 47 language tag of all prose, e.g. "en", "pt-BR"
   groups?: Group[] = [],
   nodes: Node[],                     // required, even if empty
   edges: Edge[],                     // required, even if empty

@@ -1,5 +1,5 @@
 import { FileWarning } from "lucide-react";
-import { formatIssuePath, type ValidationIssue } from "@archbook/schema";
+import { formatIssuePath, plural, type ValidationIssue } from "@archbook/schema";
 import styles from "./ErrorScreen.module.css";
 
 const MAX_SHOWN = 50;
@@ -61,8 +61,4 @@ export function InvalidScreen({ errors }: { errors: ValidationIssue[] }) {
 
 export function LoadingScreen() {
   return <div className={styles.loading}>Loading architecture…</div>;
-}
-
-function plural(count: number, word: string) {
-  return `${count} ${word}${count === 1 ? "" : "s"}`;
 }

@@ -1,3 +1,5 @@
+import { plural } from "./text.js";
+
 export const DIFF_COLLECTIONS = ["nodes", "edges", "flows", "groups"] as const;
 export type DiffCollection = (typeof DIFF_COLLECTIONS)[number];
 
@@ -70,8 +72,7 @@ const SINGULAR: Record<DiffCollection, string> = {
   groups: "group",
 };
 
-const plural = (count: number, key: DiffCollection) =>
-  `${count} ${count === 1 ? SINGULAR[key] : key}`;
+const countOf = (count: number, key: DiffCollection) => plural(count, SINGULAR[key], key);
 
 /** One-line human summary, e.g. "+2 nodes, -1 flow, 3 nodes changed". */
 export function summarizeDiff(diff: ArchitectureDiff): string {
@@ -81,12 +82,12 @@ export function summarizeDiff(diff: ArchitectureDiff): string {
   const parts: string[] = [];
   for (const key of DIFF_COLLECTIONS) {
     const c = diff[key];
-    if (c.added.length) parts.push(`+${plural(c.added.length, key)}`);
-    if (c.removed.length) parts.push(`-${plural(c.removed.length, key)}`);
+    if (c.added.length) parts.push(`+${countOf(c.added.length, key)}`);
+    if (c.removed.length) parts.push(`-${countOf(c.removed.length, key)}`);
   }
   for (const key of DIFF_COLLECTIONS) {
     const c = diff[key];
-    if (c.changed.length) parts.push(`${plural(c.changed.length, key)} changed`);
+    if (c.changed.length) parts.push(`${countOf(c.changed.length, key)} changed`);
   }
   if (diff.metadata.length) parts.push(`${diff.metadata.join(", ")} changed`);
 

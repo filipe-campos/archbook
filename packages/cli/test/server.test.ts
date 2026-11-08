@@ -1,7 +1,7 @@
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { startDevServer, type DevServer } from "../src/lib/server.js";
+import { startDevServer, type DevServer } from "../src/io/server.js";
 import { minimalDocument, tempProject } from "./helpers.js";
 
 let server: DevServer | undefined;

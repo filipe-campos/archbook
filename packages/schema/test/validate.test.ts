@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   countLines,
   formatIssuePath,
+  ISSUE_CODES,
   normalizeSourcePath,
   validateArchitecture,
   validateArchitectureText,
@@ -313,5 +314,21 @@ describe("helpers", () => {
   it("formats issue paths", () => {
     expect(formatIssuePath(["nodes", 2, "sources", 0, "path"])).toBe("nodes[2].sources[0].path");
     expect(formatIssuePath([])).toBe("(root)");
+  });
+});
+
+describe("ISSUE_CODES", () => {
+  it("decides the severity of every reported issue", () => {
+    const doc = baseDocument();
+    doc.nodes.push({ id: "lonely", kind: "service", name: "Lonely", summary: "Nothing." });
+    doc.edges.push({ id: "ghost", from: "lonely", to: "nowhere", kind: "http" });
+    const { errors, warnings } = validateArchitecture(doc, { sourceFiles: fullIndex });
+    const issues = [...errors, ...warnings];
+    expect(issues.length).toBeGreaterThan(0);
+    for (const issue of issues) expect(issue.severity).toBe(ISSUE_CODES[issue.code].severity);
+  });
+
+  it("gives every code a summary", () => {
+    for (const entry of Object.values(ISSUE_CODES)) expect(entry.summary).not.toBe("");
   });
 });

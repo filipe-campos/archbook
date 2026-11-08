@@ -2,14 +2,14 @@ import { CommanderError, type Command } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createProgram, main } from "../src/cli.js";
 import { UserError } from "../src/errors.js";
-import { loadConfig } from "../src/lib/config.js";
-import { projectPaths } from "../src/lib/project.js";
+import { loadConfig } from "../src/core/config.js";
+import { projectPaths } from "../src/core/project.js";
 import { MINIMAL_CONFIG, MINIMAL_SOURCES, minimalDocument, tempProject } from "./helpers.js";
 
 const unexpected = vi.hoisted(() => ({ error: undefined as Error | undefined }));
 
-vi.mock("../src/lib/history.js", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../src/lib/history.js")>();
+vi.mock("../src/core/history.js", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../src/core/history.js")>();
   return {
     ...original,
     listSnapshots: (...args: Parameters<typeof original.listSnapshots>) => {
@@ -87,7 +87,9 @@ describe("loadConfig", () => {
     });
     const paths = projectPaths(tempProject({ "archbook/config.json": config }));
     expect(() => loadConfig(paths)).toThrow(UserError);
-    expect(() => loadConfig(paths)).toThrow(/history\.limit/);
+    expect(() => loadConfig(paths)).toThrow(
+      "archbook/config.json is invalid:\n  history.limit: Invalid input: expected number, received string",
+    );
   });
 });
 

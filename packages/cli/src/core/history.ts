@@ -2,7 +2,7 @@ import { mkdirSync, readdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { z } from "zod";
 import { UserError } from "../errors.js";
-import { readTextIfExists, sha256, writeFileAtomic, writeJson } from "./fs.js";
+import { readTextIfExists, sha256, writeFileAtomic, writeJson } from "../io/fs.js";
 import type { ProjectPaths } from "./project.js";
 
 /** Operations the Claude Code commands snapshot before; `undo` snapshots internally too. */

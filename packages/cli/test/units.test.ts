@@ -2,11 +2,11 @@ import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createArchbookShim, toStreamMessage } from "../src/lib/claude.js";
-import { detectStack, projectDefaults } from "../src/lib/detect.js";
-import { normalizeRemoteUrl } from "../src/lib/git.js";
-import { removeAppendedText, textToAppend } from "../src/lib/textBlock.js";
-import { relativeTime, table } from "../src/lib/ui.js";
+import { createArchbookShim, toStreamMessage } from "../src/io/claude.js";
+import { detectStack, projectDefaults } from "../src/core/detect.js";
+import { normalizeRemoteUrl } from "../src/io/git.js";
+import { removeAppendedText, textToAppend } from "../src/core/textBlock.js";
+import { relativeTime, table } from "../src/ui/format.js";
 import { tempProject } from "./helpers.js";
 
 describe("textToAppend / removeAppendedText", () => {

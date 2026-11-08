@@ -114,7 +114,7 @@ Optional fields with a default (for example `tech`, `sources` and `flows`) can b
 | `version`     | string                     | required               | Schema version. Must be `"0.1"`.                                                                       |
 | `project`     | [project](#project)        | required               | Name, description and repository of the system.                                                        |
 | `audience`    | string                     | default `"developers"` | Who the prose is written for: `developers`, `stakeholders` or `mixed`.                                 |
-| `language`    | string                     | default `"en"`         | Language of all written content, as a language tag such as `en` or `pt-BR`. At least 2 characters.     |
+| `language`    | string                     | default `"en"`         | Language of all written content, as a BCP 47 language tag such as `en` or `pt-BR`.                     |
 | `groups`      | array of [groups](#groups) | default `[]`           | Boxes drawn around nodes: deployment targets, network zones, bounded contexts.                         |
 | `nodes`       | array of [nodes](#nodes)   | required               | Components of the system.                                                                              |
 | `edges`       | array of [edges](#edges)   | required               | Connections between nodes.                                                                             |
@@ -418,7 +418,7 @@ npx archbook validate --json   # machine-readable output, for scripts and agents
 | `project.repoUrl`       | URL              | optional                                                      | Absolute `http` or `https` URL. Copied into `architecture.json`.                                                           |
 | `project.defaultBranch` | string           | default `"main"`                                              | Copied into `architecture.json`.                                                                                           |
 | `audience`              | string           | default `"developers"`                                        | `developers`, `stakeholders` or `mixed`.                                                                                   |
-| `language`              | string           | default `"en"`                                                | Language of the generated prose.                                                                                           |
+| `language`              | string           | default `"en"`                                                | Language of the generated prose, as a BCP 47 language tag such as `en` or `pt-BR`.                                         |
 | `detailLevel`           | string           | default `"medium"`                                            | `high-level`: systems only. `medium`: services, data stores and queues. `detailed`: also the main modules inside services. |
 | `flows`                 | array of strings | default `[]`                                                  | The most important flows to document, in plain language, e.g. `"Checkout from cart to confirmed payment"`.                 |
 | `externalContext`       | string           | optional                                                      | External systems or infrastructure that do not appear in the code, e.g. which managed services run in production.          |

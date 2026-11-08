@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { AudienceSchema, HttpUrlSchema, SCHEMA_VERSION } from "./architecture.js";
+import {
+  AudienceSchema,
+  LanguageTagSchema,
+  ProjectSchema,
+  SCHEMA_VERSION,
+} from "./architecture.js";
 
 export const DETAIL_LEVELS = ["high-level", "medium", "detailed"] as const;
 export const DetailLevelSchema = z
@@ -20,14 +25,9 @@ export const ArchbookConfigSchema = z
   .strictObject({
     $schema: z.string().optional(),
     version: z.literal(SCHEMA_VERSION),
-    project: z.strictObject({
-      name: z.string().min(1),
-      description: z.string().default(""),
-      repoUrl: HttpUrlSchema.optional(),
-      defaultBranch: z.string().min(1).default("main"),
-    }),
+    project: ProjectSchema,
     audience: AudienceSchema.default("developers"),
-    language: z.string().min(2).default("en"),
+    language: LanguageTagSchema.default("en"),
     detailLevel: DetailLevelSchema.default("medium"),
     flows: z
       .array(z.string().min(1))

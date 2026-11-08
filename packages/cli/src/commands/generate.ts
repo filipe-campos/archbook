@@ -1,31 +1,31 @@
-import { existsSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import * as clack from "@clack/prompts";
 import pc from "picocolors";
 import { ArchitectureSchema, diffArchitecture, summarizeDiff } from "@archbook/schema";
 import { UserError } from "../errors.js";
-import { ASSET_PREFIX, PLUGIN_NAME, commandPrompt } from "../lib/assets.js";
+import { projectCommand } from "../core/assets.js";
+import { historyLimit, loadConfig } from "../core/config.js";
+import { evaluateGeneration, type GenerationDecision } from "../core/generation/outcome.js";
 import {
-  INSTALL_HINT,
-  claudeVersion,
-  createArchbookShim,
-  describeToolUse,
-  runHeadless,
-  type HeadlessRun,
-  type StreamMessage,
-} from "../lib/claude.js";
-import { historyLimit, loadConfig } from "../lib/config.js";
-import { parseDocumentText, readTextIfExists, writeFileAtomic } from "../lib/fs.js";
-import { hasUncommittedChanges } from "../lib/git.js";
-import { createSnapshot, readSnapshot, restoreSnapshot } from "../lib/history.js";
-import { relativePath, type ProjectPaths } from "../lib/project.js";
-import { command } from "../lib/ui.js";
-import { formatValidation, validateProject } from "../lib/validation.js";
-import { VERSION, cliEntry, pluginDir } from "../package.js";
-import { resolvePaths, type GlobalOptions } from "./basic.js";
+  generateInvocation,
+  runGenerationSession,
+  type GenerationSession,
+} from "../core/generation/session.js";
+import { createStreamState, describeStreamMessage } from "../core/generation/stream.js";
+import { createSnapshot, readSnapshot, restoreSnapshot } from "../core/history.js";
+import { relativePath, type ProjectPaths } from "../core/project.js";
+import { validateProject } from "../core/validation.js";
+import { INSTALL_HINT, claudeVersion } from "../io/claude.js";
+import { parseDocumentText, readTextIfExists, writeFileAtomic } from "../io/fs.js";
+import { hasUncommittedChanges } from "../io/git.js";
+import type { Output } from "../io/output.js";
+import { command } from "../ui/format.js";
+import { formatProgressLine } from "../ui/generation.js";
+import { formatValidation } from "../ui/validation.js";
+import { VERSION } from "../package.js";
+import { resolvePaths, type CommandContext } from "./context.js";
 
-export interface GenerateOptions extends GlobalOptions {
+export interface GenerateOptions {
   model?: string;
   verbose?: boolean;
   /** Overrides the `claude` executable; used by tests. */
@@ -36,63 +36,19 @@ export interface GenerateOptions extends GlobalOptions {
 
 export type GenerateOutcome = "success" | "invalid" | "failed" | "interrupted";
 
-interface Invocation {
-  prompt: string;
-  /** Name the command must have in the session's slash command list. */
-  slashCommand: string;
-  pluginDir?: string;
-  /** Same instructions as plain text, for when the slash command is not available. */
-  fallbackPrompt: string;
-}
+const OUTCOMES: Record<GenerationDecision["kind"], GenerateOutcome> = {
+  interrupted: "interrupted",
+  failed: "failed",
+  malformed: "failed",
+  invalid: "invalid",
+  success: "success",
+};
 
-/**
- * Uses the project's copy of the command when `archbook init` installed it; otherwise loads the
- * bundled plugin for this session only.
- */
-function invocation(paths: ProjectPaths): Invocation {
-  const projectCommand = path.join(paths.root, ".claude", "commands", `${ASSET_PREFIX}generate.md`);
-  if (existsSync(projectCommand)) {
-    return {
-      prompt: `/${ASSET_PREFIX}generate`,
-      slashCommand: `${ASSET_PREFIX}generate`,
-      fallbackPrompt: commandPrompt(readFileSync(projectCommand, "utf8")),
-    };
-  }
-  const plugin = pluginDir();
-  return {
-    prompt: `/${PLUGIN_NAME}:generate`,
-    slashCommand: `${PLUGIN_NAME}:generate`,
-    pluginDir: plugin,
-    fallbackPrompt: commandPrompt(
-      readFileSync(path.join(plugin, "commands", "generate.md"), "utf8"),
-    ),
-  };
-}
-
-interface Progress {
-  message: (line: string) => void;
-  success: (message: string) => void;
-  error: (message: string) => void;
-}
-
-/** A live, scrolling log in a terminal; plain lines when output goes to a file or CI log. */
-function createProgress(title: string, limit: number): Progress {
-  if (process.stdout.isTTY) return clack.taskLog({ title, limit });
-  console.log(title);
-  return {
-    message: (line) => console.log(`  ${line}`),
-    success: (message) => console.log(message),
-    error: (message) => console.error(message),
-  };
-}
-
-export async function generateCommand(options: GenerateOptions): Promise<GenerateOutcome> {
-  const paths = resolvePaths(options);
-  const bin = options.claudeBin ?? "claude";
+function checkPrerequisites(paths: ProjectPaths, options: GenerateOptions): void {
   if (!options.claudeBin && !claudeVersion()) {
     throw new UserError(
       `Claude Code is not installed. Install it with ${command(INSTALL_HINT)},\n` +
-        `or open Claude Code in this project and run ${command("/archbook-generate")}.`,
+        `or open Claude Code in this project and run ${command(projectCommand("generate"))}.`,
     );
   }
   if (!loadConfig(paths)) {
@@ -100,174 +56,122 @@ export async function generateCommand(options: GenerateOptions): Promise<Generat
       `No archbook/config.json in ${paths.root}. Run ${command("npx archbook init")} first.`,
     );
   }
+}
+
+function reportDocument(
+  output: Output,
+  decision: Extract<GenerationDecision, { kind: "invalid" | "success" }>,
+  details: { file: string; changes: string; elapsedMs: number },
+): void {
+  const { result, validation } = decision;
+  output.line(formatValidation(validation));
+  const cost = result.total_cost_usd !== undefined ? ` · $${result.total_cost_usd.toFixed(2)}` : "";
+  const minutes = ` · ${(details.elapsedMs / 60_000).toFixed(1)} min`;
+  output.info(`Changes: ${details.changes}${pc.dim(cost + minutes)}`);
+  if (result.result) output.note(result.result.trim(), "Claude Code report");
+  if (decision.kind === "invalid") {
+    output.warn(
+      `${details.file} has validation errors. Run ${command(projectCommand("generate"))} again, fix them by hand, or ${command("archbook undo")} to go back.`,
+    );
+  } else {
+    output.success(
+      `Open it with ${command("npx archbook dev")}. Not happy? ${command("npx archbook undo")} restores the previous version.`,
+    );
+  }
+}
+
+export async function generateCommand(
+  options: GenerateOptions,
+  context: CommandContext,
+): Promise<GenerateOutcome> {
+  const { output } = context;
+  const paths = resolvePaths(context);
+  checkPrerequisites(paths, options);
 
   const file = relativePath(paths.root, paths.architecture);
   if (hasUncommittedChanges(paths.root, paths.architecture)) {
-    clack.log.warn(
+    output.warn(
       `${file} has uncommitted changes. They are saved in a snapshot, so ${command("archbook undo")} can bring them back.`,
     );
   }
-  const { snapshot: snapshotMeta } = createSnapshot(paths, {
+  const { snapshot: meta } = createSnapshot(paths, {
     operation: "generate",
     version: VERSION,
     limit: historyLimit(paths),
   });
-  const snapshot = readSnapshot(paths, snapshotMeta.id);
-  const restore = () => restoreSnapshot(paths, snapshot);
+  const snapshot = readSnapshot(paths, meta.id);
+  const restored = `Restored ${file} to its state before generation.`;
 
-  const target = invocation(paths);
-  const shim = createArchbookShim(cliEntry());
-  const progress = createProgress(
+  const invocation = generateInvocation(paths);
+  const progress = output.progress(
     "Claude Code is documenting your architecture",
     options.verbose ? 40 : 12,
   );
-  const agentNames = new Map<string, string>();
-
+  const state = createStreamState();
   const startedAt = Date.now();
-  let fellBack = false;
-  let interrupted = false;
-  let current: ReturnType<typeof runHeadless> | undefined;
-  const onInterrupt = () => {
-    interrupted = true;
-    current?.kill("SIGINT");
-  };
-  process.on("SIGINT", onInterrupt);
-  options.signal?.addEventListener("abort", onInterrupt);
-
-  const onMessage = (message: StreamMessage) => {
-    if (
-      message.type === "system" &&
-      message.subtype === "init" &&
-      "slash_commands" in message &&
-      !fellBack
-    ) {
-      const available = (message.slash_commands ?? []).map((name) => name.replace(/^\//, ""));
-      if (!available.includes(target.slashCommand)) {
-        fellBack = true;
-        current?.kill("SIGTERM");
-      }
-      return;
-    }
-    if (message.type !== "assistant") return;
-    const agent = message.parent_tool_use_id
-      ? agentNames.get(message.parent_tool_use_id)
-      : undefined;
-    const prefix = agent ? pc.dim(`[${agent}] `) : "";
-    for (const block of message.message.content) {
-      if (block.type === "tool_use" && block.name) {
-        if ((block.name === "Agent" || block.name === "Task") && block.id) {
-          agentNames.set(
-            block.id,
-            String(block.input?.subagent_type ?? "subagent").replace(`${PLUGIN_NAME}:`, ""),
-          );
-        }
-        progress.message(
-          prefix + describeToolUse(block.name, block.input).replace(paths.root + path.sep, ""),
-        );
-      } else if (block.type === "text" && block.text && (options.verbose || !agent)) {
-        const firstLine = block.text.trim().split("\n")[0] ?? "";
-        if (firstLine) progress.message(prefix + pc.dim(firstLine.slice(0, 160)));
-      }
-    }
-  };
-
-  let outcome: Awaited<HeadlessRun["done"]>;
+  let session: GenerationSession;
   try {
-    current = runHeadless({
-      bin,
+    session = await runGenerationSession({
+      bin: options.claudeBin ?? "claude",
       cwd: paths.root,
-      prompt: target.prompt,
-      pluginDir: target.pluginDir,
+      invocation,
       model: options.model,
-      extraPath: [shim.dir],
-      onMessage,
-    });
-    outcome = await current.done;
-    if (fellBack && !interrupted) {
-      progress.message(
-        pc.dim(
-          `${target.prompt} is not available in this session; sending its instructions directly.`,
+      signal: options.signal,
+      onMessage: (message) => {
+        const lines = describeStreamMessage(message, state, { ...options, root: paths.root });
+        for (const line of lines) progress.message(formatProgressLine(line));
+      },
+      onFallback: () =>
+        progress.message(
+          pc.dim(
+            `${invocation.prompt} is not available in this session; sending its instructions directly.`,
+          ),
         ),
-      );
-      current = runHeadless({
-        bin,
-        cwd: paths.root,
-        prompt: target.fallbackPrompt,
-        pluginDir: target.pluginDir,
-        model: options.model,
-        extraPath: [shim.dir],
-        onMessage,
-      });
-      outcome = await current.done;
-    }
+    });
   } catch (error) {
-    restore();
+    restoreSnapshot(paths, snapshot);
     progress.error("Generation stopped by an unexpected error.");
-    clack.log.warn(`Restored ${file} to its state before generation.`);
+    output.warn(restored);
     throw error;
-  } finally {
-    process.off("SIGINT", onInterrupt);
-    options.signal?.removeEventListener("abort", onInterrupt);
-    shim.dispose();
   }
-
-  if (interrupted) {
-    restore();
-    progress.error("Interrupted.");
-    clack.log.warn(`Restored ${file} to its state before generation.`);
-    return "interrupted";
-  }
-
-  const result = outcome.result;
-  const failed = outcome.code !== 0 || !result || result.is_error;
-  if (failed) {
-    restore();
-    progress.error("Claude Code did not finish the generation.");
-    const reason =
-      result?.errors?.join("\n") ||
-      result?.result ||
-      outcome.stderr.trim().split("\n").slice(-5).join("\n") ||
-      (outcome.handlerError !== undefined ? String(outcome.handlerError) : "") ||
-      `exit code ${outcome.code}`;
-    clack.log.error(`${reason}\n\nRestored ${file} to its state before generation.`);
-    return "failed";
-  }
-  progress.success("Claude Code finished.");
 
   const text = readTextIfExists(paths.architecture);
   const parsed = parseDocumentText(text);
-  if (text === undefined || !ArchitectureSchema.safeParse(parsed).success) {
+  const schemaValid = text !== undefined && ArchitectureSchema.safeParse(parsed).success;
+  const decision = evaluateGeneration({
+    session,
+    text,
+    schemaValid,
+    validation: schemaValid ? validateProject(paths) : undefined,
+  });
+  if (decision.kind === "interrupted" || decision.kind === "failed") {
+    restoreSnapshot(paths, snapshot);
+    progress.error(
+      decision.kind === "failed" ? "Claude Code did not finish the generation." : "Interrupted.",
+    );
+    if (decision.kind === "failed") output.error(`${decision.reason}\n\n${restored}`);
+    else output.warn(restored);
+    return OUTCOMES[decision.kind];
+  }
+
+  progress.success("Claude Code finished.");
+  if (decision.kind === "malformed") {
     // A file that does not even match the schema is worse than the previous one: put that back.
     const kept = path.join(tmpdir(), `archbook-failed-${Date.now()}.json`);
     if (text !== undefined) writeFileAtomic(kept, text);
-    restore();
-    console.log(
-      formatValidation(validateProject(paths, text === undefined ? paths.architecture : kept)),
+    restoreSnapshot(paths, snapshot);
+    const shown = decision.missing ? paths.architecture : kept;
+    output.line(formatValidation(validateProject(paths, shown)));
+    output.error(
+      `The generated ${file} is ${decision.missing ? "missing" : "malformed"}, so the previous version was restored.` +
+        (decision.missing ? "" : `\nThe generated file was kept at ${kept}.`),
     );
-    clack.log.error(
-      `The generated ${file} is ${text === undefined ? "missing" : "malformed"}, so the previous version was restored.` +
-        (text !== undefined ? `\nThe generated file was kept at ${kept}.` : ""),
-    );
-    return "failed";
+    return OUTCOMES[decision.kind];
   }
 
-  const validation = validateProject(paths);
   const changes = summarizeDiff(diffArchitecture(parseDocumentText(snapshot.content), parsed));
-  console.log(formatValidation(validation));
-  const cost = result.total_cost_usd !== undefined ? ` · $${result.total_cost_usd.toFixed(2)}` : "";
-  const minutes = ` · ${((Date.now() - startedAt) / 60_000).toFixed(1)} min`;
-  clack.log.info(`Changes: ${changes}${pc.dim(cost + minutes)}`);
-  if (result.result) clack.note(result.result.trim(), "Claude Code report");
-  if (!validation.valid) {
-    clack.log.warn(
-      `${file} has validation errors. Run ${command("/archbook-generate")} again, fix them by hand, or ${command("archbook undo")} to go back.`,
-    );
-    return "invalid";
-  }
-  clack.log.success(
-    `Open it with ${command("npx archbook dev")}. Not happy? ${command("npx archbook undo")} restores the previous version.`,
-  );
-  return "success";
+  reportDocument(output, decision, { file, changes, elapsedMs: Date.now() - startedAt });
+  return OUTCOMES[decision.kind];
 }
 
 export const generateExitCode = (outcome: GenerateOutcome): number =>

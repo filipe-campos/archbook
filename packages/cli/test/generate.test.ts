@@ -2,9 +2,15 @@ import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "n
 import path from "node:path";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { generateCommand } from "../src/commands/generate.js";
-import { listSnapshots } from "../src/lib/history.js";
-import { projectPaths } from "../src/lib/project.js";
-import { MINIMAL_CONFIG, MINIMAL_SOURCES, minimalDocument, tempProject } from "./helpers.js";
+import { listSnapshots } from "../src/core/history.js";
+import { projectPaths } from "../src/core/project.js";
+import {
+  MINIMAL_CONFIG,
+  MINIMAL_SOURCES,
+  minimalDocument,
+  tempProject,
+  testContext,
+} from "./helpers.js";
 
 const fakeClaude = path.join(import.meta.dirname, "fixtures/fake-claude.mjs");
 beforeAll(() => chmodSync(fakeClaude, 0o755));
@@ -29,16 +35,32 @@ function setup(scenario: string, existing?: string) {
   return { root, paths: projectPaths(root), calls };
 }
 
-const run = (root: string, signal?: AbortSignal) =>
-  generateCommand({ cwd: root, claudeBin: fakeClaude, signal });
+async function run(root: string, signal?: AbortSignal) {
+  const context = testContext(root);
+  const outcome = await generateCommand({ claudeBin: fakeClaude, signal }, context);
+  return { outcome, output: context.output };
+}
+
+const RESTORED = "Restored archbook/architecture.json to its state before generation.";
 
 describe("generate", () => {
   it("writes the generated document, after a snapshot of the previous one", async () => {
     const previous = minimalDocument(["api"]);
     const { root, paths, calls } = setup("success", previous);
 
-    expect(await run(root)).toBe("success");
+    const { outcome, output } = await run(root);
+    expect(outcome).toBe("success");
     expect(readFileSync(paths.architecture, "utf8")).toBe(minimalDocument(["api", "worker"]));
+    expect(output.events).toEqual(
+      expect.arrayContaining([
+        { kind: "progress", text: "Claude Code is documenting your architecture" },
+        { kind: "progress.message", text: "Reading src/server.ts" },
+        { kind: "progress.success", text: "Claude Code finished." },
+        { kind: "note", text: "Documented 2 nodes.", title: "Claude Code report" },
+      ]),
+    );
+    expect(output.text()).toMatch(/Changes: \+1 node, \+1 edge · \$0\.42 · 0\.\d min/);
+    expect(output.events.at(-1)).toMatchObject({ kind: "success", text: /npx archbook dev/ });
 
     const [snapshot] = listSnapshots(paths);
     expect(snapshot).toMatchObject({ operation: "generate", existed: true });
@@ -67,7 +89,7 @@ describe("generate", () => {
     );
     vi.stubEnv("FAKE_CLAUDE_SLASH", "archbook-generate");
 
-    expect(await run(root)).toBe("success");
+    expect((await run(root)).outcome).toBe("success");
     expect(calls()[0]!.prompt).toBe("/archbook-generate");
     expect(calls()[0]!.args).not.toContain("--plugin-dir");
   });
@@ -75,34 +97,41 @@ describe("generate", () => {
   it("restores the previous file when Claude Code fails", async () => {
     const previous = minimalDocument(["api"]);
     const { root, paths } = setup("fail", previous);
-    expect(await run(root)).toBe("failed");
+    const { outcome, output } = await run(root);
+    expect(outcome).toBe("failed");
     expect(readFileSync(paths.architecture, "utf8")).toBe(previous);
+    expect(output.events).toContainEqual({
+      kind: "progress.error",
+      text: "Claude Code did not finish the generation.",
+    });
+    expect(output.events).toContainEqual({ kind: "error", text: `Something broke\n\n${RESTORED}` });
   });
 
   it("restores the previous file when the result is not valid JSON", async () => {
     const previous = minimalDocument(["api"]);
     const { root, paths } = setup("malformed", previous);
-    expect(await run(root)).toBe("failed");
+    const { outcome, output } = await run(root);
+    expect(outcome).toBe("failed");
     expect(readFileSync(paths.architecture, "utf8")).toBe(previous);
+    const error = output.events.find((event) => event.kind === "error")!.text;
+    expect(error).toMatch(/is malformed, so the previous version was restored/);
+    const kept = /kept at (.+\.json)/.exec(error)![1]!;
+    expect(readFileSync(kept, "utf8")).toBe("{ nope");
+    expect(output.text()).toMatch(/Invalid JSON/);
   });
 
   it("skips malformed stream messages instead of crashing", async () => {
     const { root, paths } = setup("malformed-stream", minimalDocument(["api"]));
-    expect(await run(root)).toBe("success");
+    expect((await run(root)).outcome).toBe("success");
     expect(readFileSync(paths.architecture, "utf8")).toBe(minimalDocument(["api", "worker"]));
   });
 
   it("does not report an unreadable previous file as created", async () => {
     const { root } = setup("success", "{ nope");
-    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-    try {
-      expect(await run(root)).toBe("success");
-      const output = write.mock.calls.map(([chunk]) => String(chunk)).join("");
-      expect(output).toMatch(/Changes: /);
-      expect(output).not.toMatch(/file created/);
-    } finally {
-      write.mockRestore();
-    }
+    const { outcome, output } = await run(root);
+    expect(outcome).toBe("success");
+    expect(output.text()).toMatch(/Changes: /);
+    expect(output.text()).not.toMatch(/file created/);
   });
 
   it("never leaves a half-written file when interrupted", async () => {
@@ -110,22 +139,32 @@ describe("generate", () => {
     const { root, paths } = setup("hang", previous);
     const controller = new AbortController();
     setTimeout(() => controller.abort(), 700);
-    expect(await run(root, controller.signal)).toBe("interrupted");
+    const { outcome, output } = await run(root, controller.signal);
+    expect(outcome).toBe("interrupted");
     expect(readFileSync(paths.architecture, "utf8")).toBe(previous);
+    expect(output.events.slice(-2)).toEqual([
+      { kind: "progress.error", text: "Interrupted." },
+      { kind: "warn", text: RESTORED },
+    ]);
   });
 
   it("removes the file again when the first generation is interrupted", async () => {
     const { root, paths } = setup("hang");
     const controller = new AbortController();
     setTimeout(() => controller.abort(), 700);
-    expect(await run(root, controller.signal)).toBe("interrupted");
+    expect((await run(root, controller.signal)).outcome).toBe("interrupted");
     expect(existsSync(paths.architecture)).toBe(false);
   });
 
   it("falls back to the command's text when the slash command is not available", async () => {
     const { root, paths, calls } = setup("fallback");
     vi.stubEnv("FAKE_CLAUDE_SLASH", "");
-    expect(await run(root)).toBe("success");
+    const { outcome, output } = await run(root);
+    expect(outcome).toBe("success");
+    expect(output.events).toContainEqual({
+      kind: "progress.message",
+      text: "/archbook:generate is not available in this session; sending its instructions directly.",
+    });
     const prompts = calls().map((call) => call.prompt);
     expect(prompts[0]).toBe("/archbook:generate");
     expect(prompts[1]).toContain("archbook:scanner");

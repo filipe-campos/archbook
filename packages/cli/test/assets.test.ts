@@ -1,8 +1,16 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { commandPrompt, planAssets, rewriteForProject } from "../src/lib/assets.js";
-import { ALLOWED_TOOLS, ARCHBOOK_BASH_RULES, ARCHITECTURE_EDIT_RULE } from "../src/lib/claude.js";
+import {
+  commandPrompt,
+  planAssets,
+  pluginAssetName,
+  pluginCommand,
+  projectAssetName,
+  projectCommand,
+  rewriteForProject,
+} from "../src/core/assets.js";
+import { ALLOWED_TOOLS, ARCHBOOK_BASH_RULES, ARCHITECTURE_EDIT_RULE } from "../src/io/claude.js";
 import { repoRoot } from "./helpers.js";
 
 const pluginRoot = path.join(repoRoot, "plugin");
@@ -115,5 +123,29 @@ describe("rewriteForProject", () => {
     expect(commandPrompt("---\ndescription: d\n---\nAdd $ARGUMENTS now.\n", "checkout")).toBe(
       "Add checkout now.",
     );
+  });
+});
+
+describe("asset names", () => {
+  it("derives project and plugin names", () => {
+    expect(projectAssetName("scanner")).toBe("archbook-scanner");
+    expect(pluginAssetName("scanner")).toBe("archbook:scanner");
+    expect(projectCommand("generate")).toBe("/archbook-generate");
+    expect(pluginCommand("generate")).toBe("/archbook:generate");
+  });
+});
+
+describe("versions", () => {
+  const versionOf = (file: string) =>
+    (JSON.parse(readFileSync(path.join(repoRoot, file), "utf8")) as { version: string }).version;
+
+  it("keeps the plugin and every package on the CLI version", () => {
+    const cli = versionOf("packages/cli/package.json");
+    const packages = readdirSync(path.join(repoRoot, "packages")).map(
+      (name) => `packages/${name}/package.json`,
+    );
+    for (const file of [...packages, "plugin/.claude-plugin/plugin.json"]) {
+      expect(versionOf(file), file).toBe(cli);
+    }
   });
 });

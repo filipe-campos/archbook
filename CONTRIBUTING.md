@@ -57,6 +57,28 @@ pnpm dev:example
 | `examples/shop-checkout`          | A complete example with stub sources, used by `pnpm dev:example` and the tests.                                                                        |
 | `docs/`                           | [`schema.md`](docs/schema.md) and [`decisions.md`](docs/decisions.md).                                                                                 |
 
+### CLI layers
+
+```text
+packages/cli/src/
+  cli.ts      # commander wiring; maps errors to exit codes
+  errors.ts   # UserError, CancelledError
+  package.ts  # VERSION and where the bundled viewer and plugin live
+  commands/   # one file per command: reads options, calls core/, prints through context.output
+  core/       # use cases and domain rules, no terminal
+  io/         # side-effect adapters: fs, git, claude, server, backup, browser, prompter, output
+  ui/         # pure text formatting for the terminal (picocolors)
+```
+
+ESLint enforces these rules:
+
+- `core/` does not import `@clack/prompts`, `picocolors`, `commander`, `commands/` or `ui/`. User decisions reach it as callbacks (`confirmOverwrite`, `confirmEdited`), not as a `Prompter`.
+- `io/` does not import `core/`, `commands/` or `ui/`.
+- `ui/` does not import `@clack/prompts`, `commander`, `io/` or `commands/`, and imports only types from `core/`.
+- A command does not import another command; shared code lives in `commands/context.ts`.
+- `commands/` and `core/` do not use `console`, and `commands/` does not import `@clack/prompts`: commands print through the `Output` in their `CommandContext` (`io/output.ts`), and tests pass `memoryOutput()`.
+- The main entry of `@archbook/schema` stays browser-safe: only `src/node.ts` may import Node built-ins.
+
 ### Checks
 
 CI runs these on every pull request; run them before pushing:

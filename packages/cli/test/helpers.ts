@@ -10,7 +10,10 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach } from "vitest";
-import { sha256 } from "../src/lib/fs.js";
+import type { CommandContext } from "../src/commands/context.js";
+import { sha256 } from "../src/io/fs.js";
+import { memoryOutput, type MemoryOutput } from "../src/io/output.js";
+import { defaultsPrompter } from "../src/io/prompter.js";
 
 const created: string[] = [];
 
@@ -81,3 +84,17 @@ export function minimalDocument(nodes = ["api"]): string {
 }
 
 export const MINIMAL_CONFIG = `${JSON.stringify({ version: "0.1", project: { name: "Demo" } }, null, 2)}\n`;
+
+/** A non-interactive command context whose output is recorded instead of printed. */
+export function testContext(
+  cwd: string,
+  overrides: Partial<CommandContext> = {},
+): CommandContext & { output: MemoryOutput } {
+  return {
+    cwd,
+    interactive: false,
+    prompter: defaultsPrompter,
+    ...overrides,
+    output: memoryOutput(),
+  };
+}

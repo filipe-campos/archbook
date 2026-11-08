@@ -1,6 +1,6 @@
 import { formatIssuePath } from "@archbook/schema";
 import { z } from "zod";
-import { readTextIfExists, writeJson } from "./fs.js";
+import { readTextIfExists, writeJson } from "../io/fs.js";
 import { isSafeProjectPath, relativePath, type ProjectPaths } from "./project.js";
 import { UserError } from "../errors.js";
 

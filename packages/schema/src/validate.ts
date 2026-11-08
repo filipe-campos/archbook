@@ -1,26 +1,48 @@
+import type { z } from "zod";
 import {
   ArchitectureSchema,
   type Architecture,
   type NodeKind,
   type SourceRef,
 } from "./architecture.js";
+import { ArchbookConfigSchema, type ArchbookConfig } from "./config.js";
+import { suggest } from "./text.js";
 
 export type IssueSeverity = "error" | "warning";
 
-export type IssueCode =
-  | "invalid-json"
-  | "schema"
-  | "duplicate-id"
-  | "unknown-node"
-  | "unknown-group"
-  | "group-cycle"
-  | "unknown-edge"
-  | "invalid-source-path"
-  | "source-not-found"
-  | "lines-out-of-range"
-  | "isolated-node"
-  | "node-without-sources"
-  | "discontinuous-flow";
+/** Every validation code with its severity. A code never changes severity between reports. */
+export const ISSUE_CODES = {
+  "invalid-json": { severity: "error", summary: "The file is not valid JSON." },
+  schema: { severity: "error", summary: "The document does not match the schema." },
+  "duplicate-id": { severity: "error", summary: "Two items in a collection share an id." },
+  "unknown-node": { severity: "error", summary: "An edge's from or to is not a node id." },
+  "unknown-group": {
+    severity: "error",
+    summary: "A node's group or a group's parent is not a group id.",
+  },
+  "group-cycle": { severity: "error", summary: "Group parents form a loop." },
+  "unknown-edge": { severity: "error", summary: "A flow step's edge is not an edge id." },
+  "invalid-source-path": {
+    severity: "error",
+    summary: "A source path is absolute, uses backslashes or leaves the project root.",
+  },
+  "source-not-found": { severity: "error", summary: "A source path does not exist." },
+  "lines-out-of-range": {
+    severity: "error",
+    summary: "A line range ends past the file, or a directory has a line range.",
+  },
+  "isolated-node": { severity: "warning", summary: "A node has no edges." },
+  "node-without-sources": {
+    severity: "warning",
+    summary: "A node that is not external or an actor has no sources.",
+  },
+  "discontinuous-flow": {
+    severity: "warning",
+    summary: "A non-async step starts at a node no earlier step reached.",
+  },
+} as const satisfies Record<string, { severity: IssueSeverity; summary: string }>;
+
+export type IssueCode = keyof typeof ISSUE_CODES;
 
 export type IssuePath = Array<string | number>;
 
@@ -59,22 +81,42 @@ export function validateArchitecture(
   options: ValidateOptions = {},
 ): ValidationResult {
   const parsed = ArchitectureSchema.safeParse(input);
-  if (!parsed.success) {
-    const errors = parsed.error.issues.map((issue): ValidationIssue => ({
-      severity: "error",
-      code: "schema",
-      message: issue.message,
-      path: issue.path.filter(
-        (part): part is string | number => typeof part === "string" || typeof part === "number",
-      ),
-    }));
-    return { valid: false, errors, warnings: [] };
-  }
+  if (!parsed.success) return { valid: false, errors: issuesFromZod(parsed.error), warnings: [] };
 
   const issues = semanticIssues(parsed.data, options);
   const errors = issues.filter((issue) => issue.severity === "error");
   const warnings = issues.filter((issue) => issue.severity === "warning");
   return { valid: errors.length === 0, errors, warnings, architecture: parsed.data };
+}
+
+/** Maps Zod issues to `schema` validation errors. */
+export function issuesFromZod(error: z.ZodError): ValidationIssue[] {
+  return error.issues.map((issue) =>
+    createIssue(
+      "schema",
+      issue.path.filter(
+        (part): part is string | number => typeof part === "string" || typeof part === "number",
+      ),
+      issue.message,
+    ),
+  );
+}
+
+export interface ConfigValidationResult {
+  valid: boolean;
+  errors: ValidationIssue[];
+  /** The parsed config with defaults applied, present when valid. */
+  config?: ArchbookConfig;
+}
+
+export function validateConfig(input: unknown): ConfigValidationResult {
+  const parsed = ArchbookConfigSchema.safeParse(input);
+  if (!parsed.success) return { valid: false, errors: issuesFromZod(parsed.error) };
+  return { valid: true, errors: [], config: parsed.data };
+}
+
+function createIssue(code: IssueCode, path: IssuePath, message: string): ValidationIssue {
+  return { severity: ISSUE_CODES[code].severity, code, message, path };
 }
 
 export type JsonParseResult = { ok: true; value: unknown } | { ok: false; issue: ValidationIssue };
@@ -84,15 +126,7 @@ export function parseJson(text: string): JsonParseResult {
     return { ok: true, value: JSON.parse(text) as unknown };
   } catch (error) {
     const reason = error instanceof Error ? error.message : String(error);
-    return {
-      ok: false,
-      issue: {
-        severity: "error",
-        code: "invalid-json",
-        message: `Invalid JSON: ${reason}`,
-        path: [],
-      },
-    };
+    return { ok: false, issue: createIssue("invalid-json", [], `Invalid JSON: ${reason}`) };
   }
 }
 
@@ -149,10 +183,8 @@ export function normalizeSourcePath(raw: string): NormalizedPath {
 
 function semanticIssues(doc: Architecture, options: ValidateOptions): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  const error = (code: IssueCode, path: IssuePath, message: string) =>
-    issues.push({ severity: "error", code, path, message });
-  const warn = (code: IssueCode, path: IssuePath, message: string) =>
-    issues.push({ severity: "warning", code, path, message });
+  const report = (code: IssueCode, path: IssuePath, message: string) =>
+    issues.push(createIssue(code, path, message));
 
   const collections = [
     ["groups", "group", doc.groups],
@@ -166,7 +198,7 @@ function semanticIssues(doc: Architecture, options: ValidateOptions): Validation
       const first = firstIndex.get(item.id);
       if (first === undefined) firstIndex.set(item.id, index);
       else {
-        error(
+        report(
           "duplicate-id",
           [key, index, "id"],
           `Duplicate ${label} id "${item.id}" (already used by ${key}[${first}]).`,
@@ -186,7 +218,7 @@ function semanticIssues(doc: Architecture, options: ValidateOptions): Validation
       const path = [...base, index];
       const normalized = normalizeSourcePath(source.path);
       if (!normalized.ok) {
-        error(
+        report(
           "invalid-source-path",
           [...path, "path"],
           `Source path "${source.path}" ${normalized.reason}.`,
@@ -196,7 +228,7 @@ function semanticIssues(doc: Architecture, options: ValidateOptions): Validation
       if (!options.sourceFiles) return;
       const entry = options.sourceFiles.lookup(normalized.path);
       if (!entry) {
-        error(
+        report(
           "source-not-found",
           [...path, "path"],
           `Source path "${source.path}" does not exist.`,
@@ -206,13 +238,13 @@ function semanticIssues(doc: Architecture, options: ValidateOptions): Validation
       if (!source.lines) return;
       const [start, end] = source.lines;
       if (entry.type === "directory") {
-        error(
+        report(
           "lines-out-of-range",
           [...path, "lines"],
           `Source "${source.path}" is a directory, so it cannot have a line range.`,
         );
       } else if (end > entry.lineCount) {
-        error(
+        report(
           "lines-out-of-range",
           [...path, "lines"],
           `Lines ${start}-${end} are outside "${source.path}", which has ${entry.lineCount} lines.`,
@@ -225,7 +257,7 @@ function semanticIssues(doc: Architecture, options: ValidateOptions): Validation
   doc.groups.forEach((group, index) => {
     if (group.parent === undefined) return;
     if (!groupSet.has(group.parent)) {
-      error(
+      report(
         "unknown-group",
         ["groups", index, "parent"],
         `Group "${group.id}" has unknown parent "${group.parent}".${suggest(group.parent, groupIds)}`,
@@ -239,7 +271,7 @@ function semanticIssues(doc: Architecture, options: ValidateOptions): Validation
       current = parentOf.get(current)
     ) {
       if (visited.has(current)) {
-        error(
+        report(
           "group-cycle",
           ["groups", index, "parent"],
           `Group "${group.id}" is part of a parent cycle.`,
@@ -252,7 +284,7 @@ function semanticIssues(doc: Architecture, options: ValidateOptions): Validation
 
   doc.nodes.forEach((node, index) => {
     if (node.group !== undefined && !groupSet.has(node.group)) {
-      error(
+      report(
         "unknown-group",
         ["nodes", index, "group"],
         `Node "${node.id}" references unknown group "${node.group}".${suggest(node.group, groupIds)}`,
@@ -264,7 +296,7 @@ function semanticIssues(doc: Architecture, options: ValidateOptions): Validation
   doc.edges.forEach((edge, index) => {
     for (const end of ["from", "to"] as const) {
       if (!nodeSet.has(edge[end])) {
-        error(
+        report(
           "unknown-node",
           ["edges", index, end],
           `Edge "${edge.id}" ${end} unknown node "${edge[end]}".${suggest(edge[end], nodeIds)}`,
@@ -284,7 +316,7 @@ function semanticIssues(doc: Architecture, options: ValidateOptions): Validation
     flow.steps.forEach((step, stepIndex) => {
       const edge = edgesById.get(step.edge);
       if (!edge) {
-        error(
+        report(
           "unknown-edge",
           ["flows", flowIndex, "steps", stepIndex, "edge"],
           `Flow "${flow.id}" step ${stepIndex + 1} references unknown edge "${step.edge}".${suggest(step.edge, edgeIds)}`,
@@ -293,7 +325,7 @@ function semanticIssues(doc: Architecture, options: ValidateOptions): Validation
       }
       const [from, to] = step.reverse ? [edge.to, edge.from] : [edge.from, edge.to];
       if (stepIndex > 0 && !step.async && reached.size > 0 && !reached.has(from)) {
-        warn(
+        report(
           "discontinuous-flow",
           ["flows", flowIndex, "steps", stepIndex],
           `Flow "${flow.id}" step ${stepIndex + 1} ("${step.title}") starts at "${from}", which no earlier step reached. Add the missing step, or mark this step async.`,
@@ -307,10 +339,10 @@ function semanticIssues(doc: Architecture, options: ValidateOptions): Validation
   const connected = new Set(doc.edges.flatMap((edge) => [edge.from, edge.to]));
   doc.nodes.forEach((node, index) => {
     if (!connected.has(node.id)) {
-      warn("isolated-node", ["nodes", index], `Node "${node.id}" has no edges.`);
+      report("isolated-node", ["nodes", index], `Node "${node.id}" has no edges.`);
     }
     if (node.sources.length === 0 && !SOURCELESS_KINDS.has(node.kind)) {
-      warn(
+      report(
         "node-without-sources",
         ["nodes", index, "sources"],
         `Node "${node.id}" (${node.kind}) has no sources. Point to the code or config that defines it.`,
@@ -319,31 +351,4 @@ function semanticIssues(doc: Architecture, options: ValidateOptions): Validation
   });
 
   return issues;
-}
-
-function suggest(value: string, candidates: readonly string[]): string {
-  let best: string | undefined;
-  let bestDistance = Infinity;
-  for (const candidate of candidates) {
-    const distance = levenshtein(value, candidate);
-    if (distance < bestDistance) {
-      best = candidate;
-      bestDistance = distance;
-    }
-  }
-  const threshold = Math.max(2, Math.floor(value.length / 3));
-  return best !== undefined && bestDistance <= threshold ? ` Did you mean "${best}"?` : "";
-}
-
-function levenshtein(a: string, b: string): number {
-  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
-  for (let i = 1; i <= a.length; i++) {
-    const current = [i];
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      current[j] = Math.min(previous[j]! + 1, current[j - 1]! + 1, previous[j - 1]! + cost);
-    }
-    previous = current;
-  }
-  return previous[b.length]!;
 }

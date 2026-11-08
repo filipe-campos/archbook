@@ -2,6 +2,17 @@ import { z } from "zod";
 
 export const SCHEMA_VERSION = "0.1";
 
+/** unpkg resolves `archbook@<schema version>` to the newest CLI of that line, which ships the JSON Schemas. */
+export const schemaUrl = (file: string) =>
+  `https://unpkg.com/archbook@${SCHEMA_VERSION}/schema/${file}`;
+export const ARCHITECTURE_SCHEMA_URL = schemaUrl("architecture.schema.json");
+export const CONFIG_SCHEMA_URL = schemaUrl("config.schema.json");
+
+/** BCP 47 language tag, e.g. `en` or `pt-BR`. */
+export const LanguageTagSchema = z
+  .string()
+  .regex(/^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$/, { error: "Use a language tag like en or pt-BR" });
+
 /** Kebab-case: lowercase letters and digits separated by single hyphens. */
 export const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -169,7 +180,7 @@ export const ArchitectureSchema = z
     version: z.literal(SCHEMA_VERSION),
     project: ProjectSchema,
     audience: AudienceSchema.default("developers"),
-    language: z.string().min(2).default("en").describe("Language of the written content."),
+    language: LanguageTagSchema.default("en").describe("Language of the written content."),
     groups: z.array(ArchGroupSchema).default([]),
     nodes: z.array(ArchNodeSchema),
     edges: z.array(ArchEdgeSchema),

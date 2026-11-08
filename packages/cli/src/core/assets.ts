@@ -6,6 +6,15 @@ export const ASSET_PREFIX = "archbook-";
 /** Name of the plugin; plugin assets reference each other as `archbook:<name>`. */
 export const PLUGIN_NAME = "archbook";
 
+/** `archbook-<name>`: the asset's name once copied into a project's `.claude/`. */
+export const projectAssetName = (name: string) => `${ASSET_PREFIX}${name}`;
+/** `archbook:<name>`: the asset's name inside the plugin. */
+export const pluginAssetName = (name: string) => `${PLUGIN_NAME}:${name}`;
+/** `/archbook-<name>`, as typed in Claude Code after `archbook init`. */
+export const projectCommand = (name: string) => `/${projectAssetName(name)}`;
+/** `/archbook:<name>`, as typed in Claude Code with the plugin installed. */
+export const pluginCommand = (name: string) => `/${pluginAssetName(name)}`;
+
 export type AssetKind = "command" | "agent" | "skill";
 
 export interface Asset {

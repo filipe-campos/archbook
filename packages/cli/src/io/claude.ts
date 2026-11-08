@@ -249,3 +249,23 @@ export function describeToolUse(name: string, input: Record<string, unknown> = {
       return name;
   }
 }
+
+/** Returns `claude plugin uninstall ...` commands for the installed plugins named `pluginName`. */
+export function pluginUninstallCommands(pluginName: string): string[] {
+  const list = spawnSync("claude", ["plugin", "list", "--json"], {
+    encoding: "utf8",
+    timeout: 15_000,
+  });
+  if (list.status !== 0) return [];
+  try {
+    const plugins = JSON.parse(list.stdout) as Array<{ id?: string; scope?: string }>;
+    return plugins
+      .filter((plugin) => plugin.id?.startsWith(`${pluginName}@`))
+      .map(
+        (plugin) =>
+          `claude plugin uninstall ${plugin.id}${plugin.scope ? ` --scope ${plugin.scope}` : ""}`,
+      );
+  } catch {
+    return [];
+  }
+}
