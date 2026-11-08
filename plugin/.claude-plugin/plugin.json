@@ -1,0 +1,10 @@
+{
+  "name": "archbook",
+  "version": "0.1.0",
+  "description": "The Storybook for architecture: generate living architecture docs (components, connections and replayable flows) from your codebase.",
+  "author": { "name": "Archbook contributors" },
+  "homepage": "https://github.com/archbook/archbook",
+  "repository": "https://github.com/archbook/archbook",
+  "license": "MIT",
+  "keywords": ["architecture", "documentation", "diagrams", "flows", "living-docs", "onboarding"]
+}

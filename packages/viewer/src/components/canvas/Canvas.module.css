@@ -1,0 +1,236 @@
+.canvas {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+}
+
+/* Architecture node */
+
+.node {
+  --kind: var(--kind-service);
+  width: 240px;
+  height: 88px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-left: 4px solid var(--kind);
+  box-shadow: var(--shadow);
+  transition:
+    opacity 250ms ease,
+    box-shadow 250ms ease,
+    border-color 250ms ease,
+    transform 250ms ease;
+}
+
+.node:hover {
+  border-color: var(--border-strong);
+  border-left-color: var(--kind);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  color: var(--kind);
+  background: color-mix(in srgb, var(--kind) 14%, transparent);
+}
+
+.titles {
+  min-width: 0;
+}
+
+.name {
+  font-weight: 650;
+  font-size: 14.5px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kindLabel {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.tech {
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.chip {
+  flex: none;
+  font-size: 11px;
+  line-height: 18px;
+  padding: 0 6px;
+  border-radius: 4px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+.handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.active {
+  border-color: var(--accent);
+  border-left-color: var(--kind);
+  box-shadow:
+    0 0 0 4px var(--accent-soft),
+    var(--shadow-lg);
+  transform: scale(1.04);
+}
+
+.visited {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-left-color: var(--kind);
+}
+
+.dimmed {
+  opacity: 0.28;
+}
+
+.selected {
+  border-color: var(--accent);
+  border-left-color: var(--kind);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Group container */
+
+.group {
+  width: 100%;
+  height: 100%;
+  border-radius: 14px;
+  border: 1.5px dashed var(--border-strong);
+  background: color-mix(in srgb, var(--text) 2.5%, transparent);
+  transition: opacity 250ms ease;
+}
+
+.groupLabel {
+  position: absolute;
+  top: 10px;
+  left: 14px;
+  right: 14px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.groupDimmed {
+  opacity: 0.55;
+}
+
+/* Edges */
+
+.edge {
+  transition: opacity 250ms ease;
+}
+
+.edge path.edgePath {
+  stroke: var(--edge);
+  stroke-width: 1.6;
+  fill: none;
+  transition:
+    stroke 250ms ease,
+    stroke-width 250ms ease;
+}
+
+.edgeActive path.edgePath {
+  stroke: var(--accent);
+  stroke-width: 3;
+}
+
+.edgeVisited path.edgePath {
+  stroke: var(--edge-visited);
+  stroke-width: 2;
+}
+
+.edgeDimmed {
+  opacity: 0.18;
+}
+
+.edgeLabel {
+  position: absolute;
+  pointer-events: all;
+  max-width: 200px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: opacity 250ms ease;
+}
+
+.edgeLabelActive {
+  color: var(--accent-text);
+  background: var(--accent);
+  border-color: var(--accent);
+  z-index: 10;
+}
+
+.edgeLabelDimmed {
+  opacity: 0.25;
+}
+
+.arrow {
+  fill: var(--edge);
+}
+
+.arrowActive {
+  fill: var(--accent);
+}
+
+.arrowVisited {
+  fill: var(--edge-visited);
+}
+
+.particleGlow {
+  fill: var(--accent);
+  opacity: 0.25;
+}
+
+.particleCore {
+  fill: var(--accent);
+  stroke: var(--surface);
+  stroke-width: 2;
+}

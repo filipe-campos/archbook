@@ -1,0 +1,23 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  cartId          String
+  customerEmail   String
+  total           Int
+  currency        String      @default("usd")
+  status          OrderStatus
+  paymentIntentId String?
+  paidAt          DateTime?
+  createdAt       DateTime    @default(now())
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAYMENT_PROCESSING
+  CONFIRMED
+  FAILED
+}

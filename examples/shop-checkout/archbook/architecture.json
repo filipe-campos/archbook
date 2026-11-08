@@ -1,0 +1,516 @@
+{
+  "$schema": "https://unpkg.com/archbook@0.1/schema/architecture.schema.json",
+  "version": "0.1",
+  "project": {
+    "name": "Shop Checkout",
+    "description": "A small e-commerce backend: a Next.js storefront, an Express orders API, BullMQ workers for payments and Redis Streams for notifications.",
+    "defaultBranch": "main"
+  },
+  "audience": "developers",
+  "language": "en",
+  "groups": [
+    {
+      "id": "vercel",
+      "name": "Vercel",
+      "description": "Edge-hosted frontend."
+    },
+    {
+      "id": "aws",
+      "name": "AWS us-east-1",
+      "description": "Containers on ECS plus managed data stores."
+    },
+    {
+      "id": "backend",
+      "name": "Backend services",
+      "parent": "aws"
+    },
+    {
+      "id": "data",
+      "name": "Data stores",
+      "parent": "aws"
+    }
+  ],
+  "nodes": [
+    {
+      "id": "customer",
+      "kind": "actor",
+      "name": "Customer",
+      "summary": "A shopper who browses the store and pays for an order."
+    },
+    {
+      "id": "web-app",
+      "kind": "app",
+      "name": "Web App",
+      "summary": "Next.js storefront that renders the catalog and the checkout page.",
+      "description": "The checkout page posts a form to a **server action** (`placeOrder`), so card details never touch our servers: the Stripe card element tokenizes them in the browser and only a `paymentMethodId` is sent.\n\nThe server action generates an `idempotency-key` per submit, which protects against double clicks and retries.",
+      "tech": ["Next.js", "React", "TypeScript"],
+      "group": "vercel",
+      "owner": "storefront-team",
+      "sources": [
+        { "path": "apps/web/app/checkout/page.tsx", "symbol": "CheckoutPage", "lines": [3, 11] },
+        { "path": "apps/web/app/checkout/actions.ts", "symbol": "placeOrder", "lines": [5, 20] }
+      ],
+      "links": [
+        {
+          "label": "Next.js server actions",
+          "url": "https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations"
+        }
+      ]
+    },
+    {
+      "id": "orders-api",
+      "kind": "service",
+      "name": "Orders API",
+      "summary": "Express service that owns orders: creates them, queues payments and handles Stripe webhooks.",
+      "description": "The Orders API is the only writer of the `Order` table.\n\n- `POST /orders` validates the cart, stores the order as `PENDING_PAYMENT` and enqueues a `payment.process` job. It answers `202 Accepted` right away; payment happens asynchronously.\n- `POST /webhooks/stripe` verifies the Stripe signature, deduplicates events in Redis and confirms the order.\n\nThe webhook route uses `express.raw()` because signature verification needs the exact request bytes.",
+      "tech": ["Node.js", "Express", "Prisma", "BullMQ"],
+      "group": "backend",
+      "owner": "checkout-team",
+      "sources": [
+        { "path": "services/orders-api/src/server.ts", "lines": [1, 11] },
+        {
+          "path": "services/orders-api/src/routes/orders.ts",
+          "symbol": "ordersRouter",
+          "lines": [8, 27]
+        },
+        {
+          "path": "services/orders-api/src/routes/stripe-webhook.ts",
+          "symbol": "stripeWebhookRouter",
+          "lines": [10, 30]
+        }
+      ]
+    },
+    {
+      "id": "postgres",
+      "kind": "database",
+      "name": "Postgres",
+      "summary": "Primary database for orders and payment status.",
+      "description": "Schema managed with Prisma. The `Order.status` column is the source of truth for the checkout state machine: `PENDING_PAYMENT` → `PAYMENT_PROCESSING` → `CONFIRMED` (or `FAILED`).",
+      "tech": ["PostgreSQL 16", "Prisma"],
+      "group": "data",
+      "sources": [
+        { "path": "services/orders-api/prisma/schema.prisma", "lines": [1, 23] },
+        { "path": "docker-compose.yml", "lines": [33, 38] }
+      ]
+    },
+    {
+      "id": "redis",
+      "kind": "cache",
+      "name": "Redis",
+      "summary": "Stores idempotency keys and processed Stripe event ids.",
+      "description": "Keys expire after 24 hours. `SET ... NX` makes the claim atomic, so two concurrent requests with the same key cannot both succeed.\n\nThe same Redis instance also backs the BullMQ payments queue and the `events:orders` stream.",
+      "tech": ["Redis 7", "ioredis"],
+      "group": "data",
+      "sources": [
+        { "path": "services/orders-api/src/lib/idempotency.ts", "lines": [1, 14] },
+        { "path": "docker-compose.yml", "lines": [40, 41] }
+      ]
+    },
+    {
+      "id": "payments-queue",
+      "kind": "queue",
+      "name": "Payments Queue",
+      "summary": "BullMQ queue of payment jobs, retried with exponential backoff.",
+      "description": "Each job carries the order id, amount, currency and Stripe payment method. Jobs are retried up to 5 times with exponential backoff starting at 2 seconds.",
+      "tech": ["BullMQ", "Redis"],
+      "group": "data",
+      "sources": [
+        {
+          "path": "services/orders-api/src/queues/payments.ts",
+          "symbol": "paymentsQueue",
+          "lines": [1, 13]
+        }
+      ]
+    },
+    {
+      "id": "payment-worker",
+      "kind": "worker",
+      "name": "Payment Worker",
+      "summary": "Consumes payment jobs and creates Stripe PaymentIntents.",
+      "description": "Runs up to 10 jobs concurrently. Uses `order-<id>` as the Stripe idempotency key, so a retried job never charges twice.\n\nThe worker only moves the order to `PAYMENT_PROCESSING`; the final confirmation comes from the Stripe webhook.",
+      "tech": ["Node.js", "BullMQ", "Stripe SDK"],
+      "group": "backend",
+      "owner": "checkout-team",
+      "sources": [{ "path": "workers/payment-worker/src/index.ts", "lines": [8, 28] }]
+    },
+    {
+      "id": "notifications-worker",
+      "kind": "worker",
+      "name": "Notifications Worker",
+      "summary": "Reads domain events from a Redis stream and sends transactional emails.",
+      "description": "Uses a Redis Streams consumer group (`notifications`), so events are acknowledged only after the email is handed to the provider.",
+      "tech": ["Node.js", "Redis Streams", "Postmark"],
+      "group": "backend",
+      "owner": "growth-team",
+      "sources": [
+        { "path": "workers/notifications-worker/src/index.ts", "lines": [7, 20] },
+        {
+          "path": "workers/notifications-worker/src/email.ts",
+          "symbol": "sendOrderConfirmation",
+          "lines": [5, 12]
+        }
+      ]
+    },
+    {
+      "id": "stripe",
+      "kind": "external",
+      "name": "Stripe",
+      "summary": "Payment processor: charges cards and reports results by webhook.",
+      "tech": ["Stripe API"],
+      "links": [{ "label": "Stripe dashboard", "url": "https://dashboard.stripe.com" }]
+    },
+    {
+      "id": "email-service",
+      "kind": "external",
+      "name": "Email Service",
+      "summary": "Postmark delivers transactional emails from templates.",
+      "tech": ["Postmark"],
+      "links": [{ "label": "Postmark docs", "url": "https://postmarkapp.com/developer" }]
+    }
+  ],
+  "edges": [
+    {
+      "id": "customer-to-web-app",
+      "from": "customer",
+      "to": "web-app",
+      "kind": "http",
+      "label": "HTTPS",
+      "sources": [{ "path": "apps/web/app/checkout/page.tsx", "lines": [3, 11] }]
+    },
+    {
+      "id": "web-app-to-orders-api",
+      "from": "web-app",
+      "to": "orders-api",
+      "kind": "http",
+      "label": "POST /orders",
+      "description": "Called from the `placeOrder` server action, with an `idempotency-key` header.",
+      "sources": [
+        { "path": "apps/web/app/checkout/actions.ts", "lines": [6, 16] },
+        { "path": "services/orders-api/src/routes/orders.ts", "lines": [8, 27] }
+      ]
+    },
+    {
+      "id": "orders-api-to-postgres",
+      "from": "orders-api",
+      "to": "postgres",
+      "kind": "db",
+      "label": "orders",
+      "sources": [
+        { "path": "services/orders-api/src/routes/orders.ts", "lines": [15, 17] },
+        { "path": "services/orders-api/src/routes/stripe-webhook.ts", "lines": [23, 26] }
+      ]
+    },
+    {
+      "id": "orders-api-to-redis",
+      "from": "orders-api",
+      "to": "redis",
+      "kind": "cache",
+      "label": "SET NX",
+      "description": "Claims idempotency keys and Stripe event ids.",
+      "sources": [{ "path": "services/orders-api/src/lib/idempotency.ts", "lines": [7, 14] }]
+    },
+    {
+      "id": "orders-api-to-payments-queue",
+      "from": "orders-api",
+      "to": "payments-queue",
+      "kind": "queue",
+      "label": "payment.process",
+      "sources": [{ "path": "services/orders-api/src/routes/orders.ts", "lines": [19, 24] }]
+    },
+    {
+      "id": "payments-queue-to-payment-worker",
+      "from": "payments-queue",
+      "to": "payment-worker",
+      "kind": "queue",
+      "label": "consume",
+      "sources": [{ "path": "workers/payment-worker/src/index.ts", "lines": [8, 10] }]
+    },
+    {
+      "id": "payment-worker-to-stripe",
+      "from": "payment-worker",
+      "to": "stripe",
+      "kind": "http",
+      "label": "POST /v1/payment_intents",
+      "sources": [{ "path": "workers/payment-worker/src/index.ts", "lines": [11, 20] }]
+    },
+    {
+      "id": "payment-worker-to-postgres",
+      "from": "payment-worker",
+      "to": "postgres",
+      "kind": "db",
+      "label": "payment status",
+      "sources": [{ "path": "workers/payment-worker/src/index.ts", "lines": [22, 25] }]
+    },
+    {
+      "id": "stripe-to-orders-api",
+      "from": "stripe",
+      "to": "orders-api",
+      "kind": "http",
+      "label": "POST /webhooks/stripe",
+      "description": "Signed with `STRIPE_WEBHOOK_SECRET`; the route verifies it with `stripe.webhooks.constructEvent`.",
+      "sources": [
+        { "path": "services/orders-api/src/server.ts", "lines": [7, 7] },
+        { "path": "services/orders-api/src/routes/stripe-webhook.ts", "lines": [10, 15] }
+      ]
+    },
+    {
+      "id": "orders-api-to-notifications-worker",
+      "from": "orders-api",
+      "to": "notifications-worker",
+      "kind": "event",
+      "label": "order.confirmed",
+      "description": "Published with `XADD` to the `events:orders` Redis stream and read by the `notifications` consumer group.",
+      "sources": [
+        { "path": "services/orders-api/src/lib/events.ts", "lines": [5, 7] },
+        { "path": "workers/notifications-worker/src/index.ts", "lines": [11, 14] }
+      ]
+    },
+    {
+      "id": "notifications-worker-to-postgres",
+      "from": "notifications-worker",
+      "to": "postgres",
+      "kind": "db",
+      "label": "read order",
+      "sources": [{ "path": "workers/notifications-worker/src/index.ts", "lines": [15, 15] }]
+    },
+    {
+      "id": "notifications-worker-to-email-service",
+      "from": "notifications-worker",
+      "to": "email-service",
+      "kind": "http",
+      "label": "sendEmailWithTemplate",
+      "sources": [{ "path": "workers/notifications-worker/src/email.ts", "lines": [5, 12] }]
+    },
+    {
+      "id": "email-service-to-customer",
+      "from": "email-service",
+      "to": "customer",
+      "kind": "other",
+      "label": "email"
+    }
+  ],
+  "flows": [
+    {
+      "id": "checkout",
+      "name": "Checkout",
+      "summary": "The customer pays for a cart. The order is stored, the payment is queued and a worker charges the card through Stripe.",
+      "trigger": "Customer clicks \"Pay\" on the checkout page",
+      "steps": [
+        {
+          "edge": "customer-to-web-app",
+          "title": "Customer submits the checkout form",
+          "description": "Stripe Elements tokenizes the card in the browser, so only a `paymentMethodId` leaves the page.",
+          "payload": { "cartId": "cart_8f2k", "paymentMethodId": "pm_1Q2w3E4r" },
+          "durationMs": 300
+        },
+        {
+          "edge": "web-app-to-orders-api",
+          "title": "Server action calls POST /orders",
+          "description": "The request carries a fresh `idempotency-key`, so a double click cannot create two orders.",
+          "payload": {
+            "method": "POST",
+            "path": "/orders",
+            "headers": { "idempotency-key": "6b1f3c2e-9a4d-4f1e-b8a2-0c7d5e9f1a3b" },
+            "body": { "cartId": "cart_8f2k", "paymentMethodId": "pm_1Q2w3E4r" }
+          },
+          "durationMs": 120
+        },
+        {
+          "edge": "orders-api-to-redis",
+          "title": "API claims the idempotency key",
+          "description": "`SET idem:<key> 1 EX 86400 NX` succeeds only for the first request with this key. A duplicate gets `409 duplicate_request`.",
+          "payload": {
+            "command": "SET",
+            "key": "idem:6b1f3c2e-9a4d-4f1e-b8a2-0c7d5e9f1a3b",
+            "args": ["1", "EX", 86400, "NX"]
+          },
+          "durationMs": 5
+        },
+        {
+          "edge": "orders-api-to-postgres",
+          "title": "Order saved as PENDING_PAYMENT",
+          "payload": {
+            "table": "Order",
+            "insert": {
+              "id": "ord_42",
+              "cartId": "cart_8f2k",
+              "total": 5998,
+              "currency": "usd",
+              "status": "PENDING_PAYMENT"
+            }
+          },
+          "durationMs": 15
+        },
+        {
+          "edge": "orders-api-to-payments-queue",
+          "title": "Payment job enqueued",
+          "description": "The API does not wait for the payment. BullMQ retries the job up to 5 times with exponential backoff.",
+          "payload": {
+            "name": "payment.process",
+            "data": {
+              "orderId": "ord_42",
+              "amount": 5998,
+              "currency": "usd",
+              "paymentMethodId": "pm_1Q2w3E4r"
+            },
+            "opts": { "attempts": 5 }
+          },
+          "durationMs": 8,
+          "async": true
+        },
+        {
+          "edge": "web-app-to-orders-api",
+          "title": "API answers 202 Accepted",
+          "description": "The web app redirects to the order page, which polls `GET /orders/:id` until the status changes.",
+          "payload": {
+            "status": 202,
+            "body": { "orderId": "ord_42", "status": "PENDING_PAYMENT" }
+          },
+          "durationMs": 20,
+          "reverse": true
+        },
+        {
+          "edge": "payments-queue-to-payment-worker",
+          "title": "Payment worker picks up the job",
+          "payload": { "jobId": "1734", "name": "payment.process", "attemptsMade": 0 },
+          "durationMs": 400,
+          "async": true
+        },
+        {
+          "edge": "payment-worker-to-stripe",
+          "title": "Worker creates and confirms a PaymentIntent",
+          "description": "`order-<id>` is sent as the Stripe idempotency key, so a retried job never charges twice. The result arrives later by webhook.",
+          "payload": {
+            "method": "POST",
+            "path": "/v1/payment_intents",
+            "headers": { "Idempotency-Key": "order-ord_42" },
+            "body": {
+              "amount": 5998,
+              "currency": "usd",
+              "payment_method": "pm_1Q2w3E4r",
+              "confirm": true,
+              "metadata": { "orderId": "ord_42" }
+            }
+          },
+          "durationMs": 1800
+        }
+      ]
+    },
+    {
+      "id": "stripe-webhook",
+      "name": "Stripe webhook → order confirmed",
+      "summary": "Stripe reports a successful payment. The API verifies the event, confirms the order and publishes order.confirmed.",
+      "trigger": "Stripe sends payment_intent.succeeded",
+      "steps": [
+        {
+          "edge": "stripe-to-orders-api",
+          "title": "Stripe calls the webhook",
+          "description": "The API verifies the `stripe-signature` header against the raw request body.",
+          "payload": {
+            "id": "evt_3Pq9",
+            "type": "payment_intent.succeeded",
+            "data": {
+              "object": {
+                "id": "pi_3Pq9",
+                "amount": 5998,
+                "status": "succeeded",
+                "metadata": { "orderId": "ord_42" }
+              }
+            }
+          },
+          "durationMs": 250,
+          "async": true
+        },
+        {
+          "edge": "orders-api-to-redis",
+          "title": "Event id deduplicated",
+          "description": "Stripe may deliver the same event more than once. A second delivery is acknowledged without side effects.",
+          "payload": {
+            "command": "SET",
+            "key": "stripe-event:evt_3Pq9",
+            "args": ["1", "EX", 86400, "NX"]
+          },
+          "durationMs": 5
+        },
+        {
+          "edge": "orders-api-to-postgres",
+          "title": "Order marked CONFIRMED",
+          "payload": {
+            "table": "Order",
+            "where": { "id": "ord_42" },
+            "update": { "status": "CONFIRMED", "paidAt": "2026-11-08T10:15:42Z" }
+          },
+          "durationMs": 12
+        },
+        {
+          "edge": "orders-api-to-notifications-worker",
+          "title": "order.confirmed published",
+          "payload": {
+            "stream": "events:orders",
+            "fields": { "type": "order.confirmed", "data": "{\"orderId\":\"ord_42\"}" }
+          },
+          "durationMs": 4,
+          "async": true
+        },
+        {
+          "edge": "stripe-to-orders-api",
+          "title": "API acknowledges with 200",
+          "description": "Any non-2xx answer makes Stripe retry the webhook with backoff for up to 3 days.",
+          "payload": { "status": 200 },
+          "durationMs": 10,
+          "reverse": true
+        }
+      ]
+    },
+    {
+      "id": "order-confirmation-email",
+      "name": "Order confirmation email",
+      "summary": "The notifications worker turns order.confirmed into a templated email for the customer.",
+      "trigger": "An order.confirmed event lands on the events:orders stream",
+      "steps": [
+        {
+          "edge": "orders-api-to-notifications-worker",
+          "title": "Worker reads order.confirmed",
+          "description": "Read through the `notifications` consumer group with `XREADGROUP`.",
+          "payload": {
+            "id": "1731060942000-0",
+            "type": "order.confirmed",
+            "data": { "orderId": "ord_42" }
+          },
+          "durationMs": 600,
+          "async": true
+        },
+        {
+          "edge": "notifications-worker-to-postgres",
+          "title": "Worker loads the order and its items",
+          "payload": { "table": "Order", "where": { "id": "ord_42" }, "include": ["items"] },
+          "durationMs": 10
+        },
+        {
+          "edge": "notifications-worker-to-email-service",
+          "title": "Email sent with the order-confirmed template",
+          "description": "The stream entry is acknowledged (`XACK`) only after Postmark accepts the email, so a crash leads to a retry instead of a lost email.",
+          "payload": {
+            "From": "orders@shop.example",
+            "To": "ana@example.com",
+            "TemplateAlias": "order-confirmed",
+            "TemplateModel": {
+              "orderId": "ord_42",
+              "total": 5998,
+              "items": [{ "name": "Mechanical keyboard", "quantity": 1 }]
+            }
+          },
+          "durationMs": 300
+        },
+        {
+          "edge": "email-service-to-customer",
+          "title": "Customer receives the confirmation",
+          "durationMs": 2000,
+          "async": true
+        }
+      ]
+    }
+  ],
+  "generatedAt": "2026-11-08T10:00:00Z",
+  "generatedBy": "hand-written example"
+}

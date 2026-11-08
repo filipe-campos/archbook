@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.DS_Store
+.vite/
+
+# Assets copied into the CLI package at build time
+packages/cli/viewer/
+packages/cli/plugin/
+packages/cli/schema/
+
+# Local Archbook state when dogfooding
+archbook/.history/
+examples/*/archbook/.history/
+examples/*/archbook/dist/

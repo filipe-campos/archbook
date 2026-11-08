@@ -1,0 +1,208 @@
+:root {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #f0f2f5;
+  --surface-3: #e7eaef;
+  --border: #dfe3e9;
+  --border-strong: #c9ced7;
+  --text: #14161b;
+  --text-muted: #5c6370;
+  --text-faint: #8b929e;
+  --accent: #5b4cf5;
+  --accent-strong: #4637e0;
+  --accent-soft: rgb(91 76 245 / 12%);
+  --accent-text: #ffffff;
+  --edge: #9ba2ae;
+  --edge-visited: #7d72f0;
+  --danger: #c8321f;
+  --danger-soft: rgb(200 50 31 / 10%);
+  --warning: #a35a00;
+  --warning-soft: rgb(214 130 0 / 13%);
+  --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 1px 3px rgb(16 24 40 / 8%);
+  --shadow-lg: 0 12px 32px rgb(16 24 40 / 14%);
+
+  --kind-app: #2f6fea;
+  --kind-service: #7a4ff0;
+  --kind-worker: #d48806;
+  --kind-database: #0f9d6b;
+  --kind-cache: #e0453a;
+  --kind-queue: #ea6c12;
+  --kind-storage: #0e9aa7;
+  --kind-external: #5d6b82;
+  --kind-actor: #d6409f;
+
+  --json-key: #7a3fd1;
+  --json-string: #0b7a52;
+  --json-number: #b4530a;
+  --json-literal: #2f6fea;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+  --topbar-height: 56px;
+  --panel-width: 400px;
+}
+
+[data-theme="dark"] {
+  --bg: #0e1014;
+  --surface: #161920;
+  --surface-2: #1d2129;
+  --surface-3: #262b35;
+  --border: #2a2f3a;
+  --border-strong: #3a404d;
+  --text: #e8eaee;
+  --text-muted: #a0a7b4;
+  --text-faint: #6f7684;
+  --accent: #8d80ff;
+  --accent-strong: #a69cff;
+  --accent-soft: rgb(141 128 255 / 16%);
+  --accent-text: #0e1014;
+  --edge: #565d6b;
+  --edge-visited: #8d80ff;
+  --danger: #ff7a66;
+  --danger-soft: rgb(255 122 102 / 12%);
+  --warning: #f0b45b;
+  --warning-soft: rgb(240 180 91 / 12%);
+  --shadow: 0 1px 2px rgb(0 0 0 / 40%);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 50%);
+
+  --kind-app: #5b93ff;
+  --kind-service: #a184ff;
+  --kind-worker: #f0b13c;
+  --kind-database: #34c48f;
+  --kind-cache: #ff6f62;
+  --kind-queue: #ff9447;
+  --kind-storage: #2ec5d1;
+  --kind-external: #8e9ab0;
+  --kind-actor: #f06bbd;
+
+  --json-key: #c3a6ff;
+  --json-string: #7fd8a8;
+  --json-number: #ffb370;
+  --json-literal: #7fb0ff;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+a {
+  color: var(--accent);
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+  background: var(--surface-2);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.react-flow {
+  --xy-background-color: var(--bg);
+  --xy-minimap-background-color: var(--surface);
+  --xy-controls-button-background-color: var(--surface);
+  --xy-controls-button-background-color-hover: var(--surface-2);
+  --xy-controls-button-color: var(--text);
+  --xy-controls-button-border-color: var(--border);
+  --xy-edge-label-background-color: var(--surface);
+}
+
+.react-flow__node {
+  cursor: pointer;
+}
+
+.react-flow__minimap {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.react-flow__controls {
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.react-flow__attribution {
+  background: transparent;
+}
+
+.minimap-group {
+  fill: var(--surface-3);
+  opacity: 0.6;
+}
+.minimap-app {
+  fill: var(--kind-app);
+}
+.minimap-service {
+  fill: var(--kind-service);
+}
+.minimap-worker {
+  fill: var(--kind-worker);
+}
+.minimap-database {
+  fill: var(--kind-database);
+}
+.minimap-cache {
+  fill: var(--kind-cache);
+}
+.minimap-queue {
+  fill: var(--kind-queue);
+}
+.minimap-storage {
+  fill: var(--kind-storage);
+}
+.minimap-external {
+  fill: var(--kind-external);
+}
+.minimap-actor {
+  fill: var(--kind-actor);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+**/dist/
+packages/cli/viewer/
+packages/cli/plugin/
+packages/cli/schema/
+examples/**/archbook/.history/

@@ -1,0 +1,14 @@
+{
+  "name": "archbook",
+  "owner": { "name": "Archbook contributors" },
+  "description": "Archbook, the Storybook for architecture: living architecture docs generated from your code.",
+  "plugins": [
+    {
+      "name": "archbook",
+      "source": "./plugin",
+      "description": "Commands, subagents and skills that generate and maintain archbook/architecture.json: components, connections and replayable flows backed by your code.",
+      "category": "documentation",
+      "tags": ["architecture", "documentation", "diagrams", "flows", "onboarding"]
+    }
+  ]
+}

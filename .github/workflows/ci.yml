@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    name: Lint, build, typecheck and test (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm build
+      - run: pnpm typecheck
+      - run: pnpm test
+      - name: Validate the example
+        run: node packages/cli/dist/index.js validate --cwd examples/shop-checkout
+
+  cli-runtime:
+    name: CLI smoke test on Node 20
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Run the built CLI on Node 20
+        run: |
+          node packages/cli/dist/index.js --version
+          node packages/cli/dist/index.js validate --cwd examples/shop-checkout
+          node packages/cli/dist/index.js build --cwd examples/shop-checkout --out "$RUNNER_TEMP/site"
+          test -f "$RUNNER_TEMP/site/index.html"
+          test -f "$RUNNER_TEMP/site/architecture.json"
