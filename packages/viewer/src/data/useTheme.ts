@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-export type ThemePreference = "light" | "dark" | "system";
+type ThemePreference = "light" | "dark" | "system";
 export type Theme = "light" | "dark";
 
 const STORAGE_KEY = "archbook:theme";

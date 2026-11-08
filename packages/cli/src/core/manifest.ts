@@ -40,24 +40,20 @@ const CreatedDirectorySchema = z.strictObject({
   change: z.literal("created-dir"),
 });
 
-export const ManifestEntrySchema = z.discriminatedUnion("change", [
+const ManifestEntrySchema = z.discriminatedUnion("change", [
   CreatedFileSchema,
   ReplacedFileSchema,
   ModifiedFileSchema,
   CreatedDirectorySchema,
 ]);
 
-export const ManifestSchema = z.strictObject({
+const ManifestSchema = z.strictObject({
   archbookManifest: z.literal(1),
   archbookVersion: z.string(),
   updatedAt: z.string(),
   entries: z.array(ManifestEntrySchema),
 });
 
-export type CreatedFile = z.infer<typeof CreatedFileSchema>;
-export type ReplacedFile = z.infer<typeof ReplacedFileSchema>;
-export type ModifiedFile = z.infer<typeof ModifiedFileSchema>;
-export type CreatedDirectory = z.infer<typeof CreatedDirectorySchema>;
 export type ManifestEntry = z.infer<typeof ManifestEntrySchema>;
 export type Manifest = z.infer<typeof ManifestSchema>;
 

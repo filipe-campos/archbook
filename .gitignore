@@ -17,4 +17,5 @@ archbook/.history/
 examples/*/archbook/.history/
 examples/*/archbook/dist/
 
-.claude/commands/local
+.claude/commands/local/
+.claude/plans/

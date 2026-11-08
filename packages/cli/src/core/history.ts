@@ -30,7 +30,7 @@ type SnapshotFile = z.infer<typeof SnapshotFileSchema>;
 export type Snapshot = Omit<SnapshotFile, "archbookSnapshot">;
 export type SnapshotMeta = Omit<Snapshot, "content">;
 
-export function contentHash(content: string | undefined | null): string | null {
+function contentHash(content: string | undefined | null): string | null {
   return content == null ? null : sha256(content);
 }
 

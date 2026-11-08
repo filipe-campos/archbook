@@ -71,7 +71,7 @@ const CURATED_NODE_FIELDS = ["owner", "links", "position"] as const;
 
 type Collection = "groups" | "nodes" | "edges" | "flows";
 
-export interface MergeReport {
+interface MergeReport {
   added: Record<Collection, string[]>;
   /** Ids the previous document had and a structure draft left out. */
   removed: Record<Exclude<Collection, "flows">, string[]>;

@@ -1,7 +1,7 @@
 import { stripVTControlCharacters } from "node:util";
 import * as clack from "@clack/prompts";
 
-export interface Progress {
+interface Progress {
   message(line: string): void;
   success(message: string): void;
   error(message: string): void;
@@ -55,14 +55,14 @@ export const terminalOutput: Output = {
   progress: (title, limit) => clack.taskLog({ title, limit }),
 };
 
-export type OutputEventKind =
+type OutputEventKind =
   | Exclude<keyof Output, "progress">
   | "progress"
   | "progress.message"
   | "progress.success"
   | "progress.error";
 
-export interface OutputEvent {
+interface OutputEvent {
   kind: OutputEventKind;
   text: string;
   title?: string;

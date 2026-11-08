@@ -16,7 +16,7 @@ export default defineConfig({
       include: ["src/**"],
       reporter: ["text-summary"],
       // The coverage measured when the limits were set, rounded down; raise them as tests grow.
-      thresholds: { statements: 88, branches: 80, functions: 84, lines: 88 },
+      thresholds: { statements: 88, branches: 80, functions: 88, lines: 88 },
     },
     include: ["test/**/*.test.ts"],
     testTimeout: 20_000,

@@ -12,7 +12,7 @@ export const GROUP_PADDING = { top: 44, right: 28, bottom: 28, left: 28 };
 
 export const groupNodeId = (groupId: string) => `group:${groupId}`;
 
-export interface Box {
+interface Box {
   x: number;
   y: number;
   width: number;

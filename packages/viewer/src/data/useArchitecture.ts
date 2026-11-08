@@ -14,7 +14,7 @@ import {
 
 export type { LoadState } from "../lib/loadState";
 
-export async function loadArchitecture(url: string): Promise<LoadResult> {
+async function loadArchitecture(url: string): Promise<LoadResult> {
   let response: Response;
   try {
     response = await fetch(url, { cache: "no-store" });

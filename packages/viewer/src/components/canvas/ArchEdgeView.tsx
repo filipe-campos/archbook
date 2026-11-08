@@ -15,7 +15,7 @@ const EDGE_CLASS: Record<Emphasis, string | undefined> = {
   dimmed: styles.edgeDimmed,
 };
 
-export const MARKER_IDS: Record<Emphasis, string> = {
+const MARKER_IDS: Record<Emphasis, string> = {
   active: "archbook-arrow-active",
   visited: "archbook-arrow-visited",
   normal: "archbook-arrow",

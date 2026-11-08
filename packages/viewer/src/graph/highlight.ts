@@ -2,7 +2,7 @@ import { stepEndpoints, type ArchFlow, type ArchitectureIndex } from "@archbook/
 
 export type Emphasis = "active" | "visited" | "normal" | "dimmed";
 
-export interface Travel {
+interface Travel {
   edgeId: string;
   reverse: boolean;
   travelMs: number;

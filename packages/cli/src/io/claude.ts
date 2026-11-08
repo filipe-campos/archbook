@@ -8,7 +8,7 @@ import { createInterface } from "node:readline";
  * The only Archbook subcommands the plugin runs. None deletes user files, and the ones that write
  * touch only architecture.json and its drafts.
  */
-export const ARCHBOOK_SUBCOMMANDS = ["validate", "snapshot", "merge", "format"] as const;
+const ARCHBOOK_SUBCOMMANDS = ["validate", "snapshot", "merge", "format"] as const;
 
 /** A trailing ` *` also matches the bare command. */
 export const ARCHBOOK_BASH_RULES = ["archbook", "npx archbook"].flatMap((bin) =>
@@ -16,8 +16,8 @@ export const ARCHBOOK_BASH_RULES = ["archbook", "npx archbook"].flatMap((bin) =>
 );
 
 /** Edit rules also cover the Write tool. */
-export const ARCHITECTURE_EDIT_RULE = "Edit(./archbook/architecture.json)";
-export const DRAFTS_EDIT_RULE = "Edit(./archbook/.drafts/**)";
+const ARCHITECTURE_EDIT_RULE = "Edit(./archbook/architecture.json)";
+const DRAFTS_EDIT_RULE = "Edit(./archbook/.drafts/**)";
 export const ARCHBOOK_EDIT_RULES = [ARCHITECTURE_EDIT_RULE, DRAFTS_EDIT_RULE];
 
 /** Tools a headless generation may use. */
@@ -36,7 +36,7 @@ export const ALLOWED_TOOLS = [
   "Bash(wc *)",
 ];
 
-export const HEADLESS_SYSTEM_PROMPT = [
+const HEADLESS_SYSTEM_PROMPT = [
   "You are running non-interactively, started by the `archbook generate` command.",
   "No user can answer questions: make reasonable decisions, state your assumptions in the final report, and never wait for confirmation.",
   "The Archbook CLI is on PATH as `archbook`. Wherever instructions say `npx archbook <command>`, run `archbook <command>` instead.",

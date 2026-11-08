@@ -52,7 +52,7 @@ function matches(pattern: string, relative: string): boolean {
 }
 
 /** Lists project files breadth-first, skipping ignored folders and stopping at a size cap. */
-export function listProjectFiles(root: string, ignore: readonly string[] = []): string[] {
+function listProjectFiles(root: string, ignore: readonly string[] = []): string[] {
   const skipped = new Set([...ALWAYS_SKIPPED, ...ignore]);
   const files: string[] = [];
   const queue: Array<[string, number]> = [["", 0]];

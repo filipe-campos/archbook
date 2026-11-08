@@ -54,10 +54,6 @@ export function treeSnapshot(root: string): Record<string, string> {
 
 export const repoRoot = path.resolve(import.meta.dirname, "../../..");
 export const examplePath = path.join(repoRoot, "examples/shop-checkout");
-export const exampleDocument = readFileSync(
-  path.join(examplePath, "archbook/architecture.json"),
-  "utf8",
-);
 
 /** A minimal valid document whose source paths exist in `tempProject(MINIMAL_SOURCES)`. */
 export const MINIMAL_SOURCES = { "src/server.ts": "export {};\n" };

@@ -1,7 +1,7 @@
 import * as clack from "@clack/prompts";
 import { CancelledError } from "../errors.js";
 
-export interface Choice<T extends string> {
+interface Choice<T extends string> {
   value: T;
   label: string;
   hint?: string;

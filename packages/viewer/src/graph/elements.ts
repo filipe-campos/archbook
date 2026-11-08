@@ -3,8 +3,8 @@ import type { Edge, Node } from "@xyflow/react";
 import { drawableEdges, groupNodeId, visibleGroups, type Layout } from "./layout";
 
 export type ArchNodeData = { node: ArchNode };
-export type GroupNodeData = { group: ArchGroup };
-export type ArchEdgeData = { edge: ArchEdge };
+type GroupNodeData = { group: ArchGroup };
+type ArchEdgeData = { edge: ArchEdge };
 
 export type ArchCanvasNode = Node<ArchNodeData, "arch">;
 export type GroupCanvasNode = Node<GroupNodeData, "group">;

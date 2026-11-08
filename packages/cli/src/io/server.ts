@@ -33,7 +33,7 @@ export interface DevServer {
 }
 
 /** Adds the meta tag that tells the viewer to subscribe to live reload. */
-export function injectLiveReload(html: string): string {
+function injectLiveReload(html: string): string {
   const tag = `<meta name="${LIVE_RELOAD_META}" content="./${LIVE_RELOAD_PATH}">`;
   return html.includes("</head>") ? html.replace("</head>", `  ${tag}\n  </head>`) : tag + html;
 }

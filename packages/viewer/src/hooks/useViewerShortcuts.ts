@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { isTyping } from "../lib/keyboard";
 
-export type ShortcutKey = " " | "ArrowLeft" | "ArrowRight" | "Escape";
+type ShortcutKey = " " | "ArrowLeft" | "ArrowRight" | "Escape";
 
 /**
  * Handlers by `KeyboardEvent.key`; keys without one are left to the browser, and so are keys a

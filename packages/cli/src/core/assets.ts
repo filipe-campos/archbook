@@ -15,7 +15,7 @@ export const projectCommand = (name: string) => `/${projectAssetName(name)}`;
 /** `/archbook:<name>`, as typed in Claude Code with the plugin installed. */
 export const pluginCommand = (name: string) => `/${pluginAssetName(name)}`;
 
-export type AssetKind = "command" | "agent" | "skill";
+type AssetKind = "command" | "agent" | "skill";
 
 export interface Asset {
   kind: AssetKind;
