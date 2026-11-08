@@ -42,6 +42,7 @@ Want to see it first? Clone this repo, then run `pnpm install && pnpm build && p
 | `archbook dev`                                      | Serves the viewer with live reload (port 4400).                                                                                                  |
 | `archbook build [--out dir]`                        | Builds a static site (default `archbook/dist`) for GitHub Pages or any static host.                                                              |
 | `archbook validate [--json]`                        | Checks the schema, references between elements, and that every cited file and line range exists.                                                 |
+| `archbook format [--check]`                         | Rewrites `architecture.json` with the canonical key order and spacing; `--check` only reports, for CI.                                           |
 | `archbook history`                                  | Lists snapshots and what each operation changed (`+2 nodes, -1 flow, 3 nodes changed`).                                                          |
 | `archbook undo [--to <id>]`                         | Restores the previous version. Run it again to redo.                                                                                             |
 | `archbook remove [--keep-docs] [--dry-run] [--yes]` | Removes everything Archbook installed, using its manifest, after a backup.                                                                       |

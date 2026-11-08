@@ -1,8 +1,18 @@
+---
+# npm packages that reveal this technology. `archbook init` reads this list to report the
+# technology as detected, so the agents know to read this recipe. One entry per technology the
+# recipe covers. Leave the whole block out when no npm package reveals it (see docker-compose.md).
+detect:
+  - name: <Technology name>
+    packages: [<package-a>, "@<scope>/<package-b>"]
+---
+
 # <Technology name>
 
 <!--
 How to write a recipe:
 - Copy this file to recipes/<technology>.md (kebab-case, e.g. rabbitmq.md) and add a row to the index in ../SKILL.md.
+- Keep the frontmatter above with the packages of your technology (quote names that start with @), or delete it when there are none.
 - Keep the six sections below, in this order, with these exact headings.
 - Write for an agent that has never seen the repository: concrete patterns, concrete labels, concrete examples.
 - Grep patterns are ripgrep regular expressions for the Grep tool: escape literal ( . { [ $, no lookarounds.

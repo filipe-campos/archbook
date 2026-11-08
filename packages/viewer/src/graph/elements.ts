@@ -1,6 +1,6 @@
 import type { ArchEdge, ArchGroup, ArchNode, Architecture } from "@archbook/schema";
 import type { Edge, Node } from "@xyflow/react";
-import { groupNodeId, visibleGroups, type Layout } from "./layout";
+import { drawableEdges, groupNodeId, visibleGroups, type Layout } from "./layout";
 
 export type ArchNodeData = { node: ArchNode };
 export type GroupNodeData = { group: ArchGroup };
@@ -11,10 +11,17 @@ export type GroupCanvasNode = Node<GroupNodeData, "group">;
 export type CanvasNode = ArchCanvasNode | GroupCanvasNode;
 export type CanvasEdge = Edge<ArchEdgeData, "arch">;
 
+/** Accessible names for canvas elements, read by screen readers. */
+export interface ElementLabels {
+  node: (node: ArchNode) => string;
+  edge: (edge: ArchEdge) => string;
+}
+
 /** Converts the document and its layout into canvas elements. Parents come before children. */
 export function buildElements(
   arch: Architecture,
   layout: Layout,
+  labels?: ElementLabels,
 ): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
   const groups = visibleGroups(arch);
   const shownGroups = new Set(groups.map((group) => group.id));
@@ -49,20 +56,24 @@ export function buildElements(
       type: "arch",
       position: { x: box.x, y: box.y },
       data: { node },
+      ...(labels ? { ariaLabel: labels.node(node) } : {}),
       ...(grouped ? { parentId: groupNodeId(node.group!), extent: "parent" as const } : {}),
     });
   }
 
-  const nodeIds = new Set(arch.nodes.map((node) => node.id));
-  const edges: CanvasEdge[] = arch.edges
-    .filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to) && edge.from !== edge.to)
-    .map((edge) => ({
-      id: edge.id,
-      source: edge.from,
-      target: edge.to,
-      type: "arch",
-      data: { edge },
-    }));
+  // A labelled edge is reached through its label button, so its path is not a second tab stop.
+  const edges: CanvasEdge[] = drawableEdges(arch).map((edge) => ({
+    id: edge.id,
+    source: edge.from,
+    target: edge.to,
+    type: "arch",
+    data: { edge },
+    ...(edge.label
+      ? { focusable: false, domAttributes: { "aria-hidden": true } }
+      : labels
+        ? { ariaLabel: labels.edge(edge) }
+        : {}),
+  }));
 
   return { nodes, edges };
 }

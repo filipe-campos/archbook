@@ -2,7 +2,7 @@ import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from 
 import { Moon, Play, Search, Sun } from "lucide-react";
 import type { ArchFlow, ArchNode } from "@archbook/schema";
 import type { Theme } from "../../data/useTheme";
-import { NODE_KIND_STYLES } from "../../graph/kinds";
+import { NODE_KIND_STYLES } from "../kinds";
 import { cx } from "../../lib/cx";
 import { isTyping } from "../../lib/keyboard";
 import { searchNodes } from "../../lib/search";
@@ -97,6 +97,10 @@ function SearchBox({ nodes, onPick }: { nodes: ArchNode[]; onPick: (id: string) 
     input.current?.blur();
   };
 
+  const expanded = open && query !== "";
+  const optionId = (index: number) => `${listId}-${index}`;
+  const activeOption = expanded && results[active] ? optionId(active) : undefined;
+
   return (
     <div className={styles.search}>
       <label className={styles.field}>
@@ -107,8 +111,11 @@ function SearchBox({ nodes, onPick }: { nodes: ArchNode[]; onPick: (id: string) 
           placeholder="Search components or tech"
           value={query}
           role="combobox"
-          aria-expanded={open && query !== ""}
+          aria-label="Search components"
+          aria-autocomplete="list"
+          aria-expanded={expanded && results.length > 0}
           aria-controls={listId}
+          aria-activedescendant={activeOption}
           onChange={(event) => {
             setQuery(event.target.value);
             setActive(0);
@@ -129,35 +136,42 @@ function SearchBox({ nodes, onPick }: { nodes: ArchNode[]; onPick: (id: string) 
         />
         <kbd className={styles.kbd}>/</kbd>
       </label>
-      {open && query !== "" && (
-        <ul className={styles.results} id={listId} role="listbox">
-          {results.length === 0 && <li className={styles.noResults}>No matching components</li>}
-          {results.map((node, index) => {
-            const kind = NODE_KIND_STYLES[node.kind];
-            const Icon = kind.icon;
-            return (
-              <li key={node.id} role="option" aria-selected={index === active}>
-                <button
-                  type="button"
-                  className={cx(styles.result, index === active && styles.resultActive)}
-                  style={{ "--kind": kind.color } as CSSProperties}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => pick(node)}
-                  onMouseEnter={() => setActive(index)}
-                >
-                  <Icon size={17} className={styles.resultIcon} />
-                  <span className={styles.resultText}>
-                    <span className={styles.resultName}>{node.name}</span>
-                    <span className={styles.resultMeta}>
-                      {[kind.label, ...node.tech].join(" · ")}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
+      {expanded && results.length === 0 && (
+        <div className={styles.results} role="status">
+          <div className={styles.noResults}>No matching components</div>
+        </div>
       )}
+      <ul
+        className={styles.results}
+        id={listId}
+        role="listbox"
+        aria-label="Matching components"
+        hidden={!expanded || results.length === 0}
+      >
+        {results.map((node, index) => {
+          const kind = NODE_KIND_STYLES[node.kind];
+          const Icon = kind.icon;
+          return (
+            <li
+              key={node.id}
+              id={optionId(index)}
+              role="option"
+              aria-selected={index === active}
+              className={cx(styles.result, index === active && styles.resultActive)}
+              style={{ "--kind": kind.color } as CSSProperties}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => pick(node)}
+              onMouseEnter={() => setActive(index)}
+            >
+              <Icon size={17} className={styles.resultIcon} aria-hidden />
+              <span className={styles.resultText}>
+                <span className={styles.resultName}>{node.name}</span>
+                <span className={styles.resultMeta}>{[kind.label, ...node.tech].join(" · ")}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

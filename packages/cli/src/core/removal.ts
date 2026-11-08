@@ -31,7 +31,7 @@ export interface RemovalPlan {
 }
 
 const DOC_FILES = ["architecture.json", "dist"];
-const TOOLING_FILES = ["config.json", ".history", ".manifest.json"];
+const TOOLING_FILES = ["config.json", ".history", ".drafts", ".manifest.json"];
 const ASSET_DIRS = [".claude/commands", ".claude/agents", ".claude/skills"];
 
 const exists = (root: string, file: string) => existsSync(resolveInside(root, file));

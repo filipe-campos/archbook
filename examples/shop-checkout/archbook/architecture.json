@@ -43,13 +43,31 @@
       "name": "Web App",
       "summary": "Next.js storefront that renders the catalog and the checkout page.",
       "description": "The checkout page posts a form to a **server action** (`placeOrder`), so card details never touch our servers: the Stripe card element tokenizes them in the browser and only a `paymentMethodId` is sent.\n\nThe server action generates an `idempotency-key` per submit, which protects against double clicks and retries.",
-      "tech": ["Next.js", "React", "TypeScript"],
-      "group": "vercel",
-      "owner": "storefront-team",
-      "sources": [
-        { "path": "apps/web/app/checkout/page.tsx", "symbol": "CheckoutPage", "lines": [3, 11] },
-        { "path": "apps/web/app/checkout/actions.ts", "symbol": "placeOrder", "lines": [5, 20] }
+      "tech": [
+        "Next.js",
+        "React",
+        "TypeScript"
       ],
+      "group": "vercel",
+      "sources": [
+        {
+          "path": "apps/web/app/checkout/page.tsx",
+          "symbol": "CheckoutPage",
+          "lines": [
+            3,
+            11
+          ]
+        },
+        {
+          "path": "apps/web/app/checkout/actions.ts",
+          "symbol": "placeOrder",
+          "lines": [
+            5,
+            20
+          ]
+        }
+      ],
+      "owner": "storefront-team",
       "links": [
         {
           "label": "Next.js server actions",
@@ -63,22 +81,39 @@
       "name": "Orders API",
       "summary": "Express service that owns orders: creates them, queues payments and handles Stripe webhooks.",
       "description": "The Orders API is the only writer of the `Order` table.\n\n- `POST /orders` validates the cart, stores the order as `PENDING_PAYMENT` and enqueues a `payment.process` job. It answers `202 Accepted` right away; payment happens asynchronously.\n- `POST /webhooks/stripe` verifies the Stripe signature, deduplicates events in Redis and confirms the order.\n\nThe webhook route uses `express.raw()` because signature verification needs the exact request bytes.",
-      "tech": ["Node.js", "Express", "Prisma", "BullMQ"],
+      "tech": [
+        "Node.js",
+        "Express",
+        "Prisma",
+        "BullMQ"
+      ],
       "group": "backend",
-      "owner": "checkout-team",
       "sources": [
-        { "path": "services/orders-api/src/server.ts", "lines": [1, 11] },
+        {
+          "path": "services/orders-api/src/server.ts",
+          "lines": [
+            1,
+            11
+          ]
+        },
         {
           "path": "services/orders-api/src/routes/orders.ts",
           "symbol": "ordersRouter",
-          "lines": [8, 27]
+          "lines": [
+            8,
+            27
+          ]
         },
         {
           "path": "services/orders-api/src/routes/stripe-webhook.ts",
           "symbol": "stripeWebhookRouter",
-          "lines": [10, 30]
+          "lines": [
+            10,
+            30
+          ]
         }
-      ]
+      ],
+      "owner": "checkout-team"
     },
     {
       "id": "postgres",
@@ -86,11 +121,26 @@
       "name": "Postgres",
       "summary": "Primary database for orders and payment status.",
       "description": "Schema managed with Prisma. The `Order.status` column is the source of truth for the checkout state machine: `PENDING_PAYMENT` → `PAYMENT_PROCESSING` → `CONFIRMED` (or `FAILED`).",
-      "tech": ["PostgreSQL 16", "Prisma"],
+      "tech": [
+        "PostgreSQL 16",
+        "Prisma"
+      ],
       "group": "data",
       "sources": [
-        { "path": "services/orders-api/prisma/schema.prisma", "lines": [1, 23] },
-        { "path": "docker-compose.yml", "lines": [33, 38] }
+        {
+          "path": "services/orders-api/prisma/schema.prisma",
+          "lines": [
+            1,
+            23
+          ]
+        },
+        {
+          "path": "docker-compose.yml",
+          "lines": [
+            33,
+            38
+          ]
+        }
       ]
     },
     {
@@ -99,11 +149,26 @@
       "name": "Redis",
       "summary": "Stores idempotency keys and processed Stripe event ids.",
       "description": "Keys expire after 24 hours. `SET ... NX` makes the claim atomic, so two concurrent requests with the same key cannot both succeed.\n\nThe same Redis instance also backs the BullMQ payments queue and the `events:orders` stream.",
-      "tech": ["Redis 7", "ioredis"],
+      "tech": [
+        "Redis 7",
+        "ioredis"
+      ],
       "group": "data",
       "sources": [
-        { "path": "services/orders-api/src/lib/idempotency.ts", "lines": [1, 14] },
-        { "path": "docker-compose.yml", "lines": [40, 41] }
+        {
+          "path": "services/orders-api/src/lib/idempotency.ts",
+          "lines": [
+            1,
+            14
+          ]
+        },
+        {
+          "path": "docker-compose.yml",
+          "lines": [
+            40,
+            41
+          ]
+        }
       ]
     },
     {
@@ -112,13 +177,19 @@
       "name": "Payments Queue",
       "summary": "BullMQ queue of payment jobs, retried with exponential backoff.",
       "description": "Each job carries the order id, amount, currency and Stripe payment method. Jobs are retried up to 5 times with exponential backoff starting at 2 seconds.",
-      "tech": ["BullMQ", "Redis"],
+      "tech": [
+        "BullMQ",
+        "Redis"
+      ],
       "group": "data",
       "sources": [
         {
           "path": "services/orders-api/src/queues/payments.ts",
           "symbol": "paymentsQueue",
-          "lines": [1, 13]
+          "lines": [
+            1,
+            13
+          ]
         }
       ]
     },
@@ -128,10 +199,22 @@
       "name": "Payment Worker",
       "summary": "Consumes payment jobs and creates Stripe PaymentIntents.",
       "description": "Runs up to 10 jobs concurrently. Uses `order-<id>` as the Stripe idempotency key, so a retried job never charges twice.\n\nThe worker only moves the order to `PAYMENT_PROCESSING`; the final confirmation comes from the Stripe webhook.",
-      "tech": ["Node.js", "BullMQ", "Stripe SDK"],
+      "tech": [
+        "Node.js",
+        "BullMQ",
+        "Stripe SDK"
+      ],
       "group": "backend",
-      "owner": "checkout-team",
-      "sources": [{ "path": "workers/payment-worker/src/index.ts", "lines": [8, 28] }]
+      "sources": [
+        {
+          "path": "workers/payment-worker/src/index.ts",
+          "lines": [
+            8,
+            28
+          ]
+        }
+      ],
+      "owner": "checkout-team"
     },
     {
       "id": "notifications-worker",
@@ -139,33 +222,60 @@
       "name": "Notifications Worker",
       "summary": "Reads domain events from a Redis stream and sends transactional emails.",
       "description": "Uses a Redis Streams consumer group (`notifications`), so events are acknowledged only after the email is handed to the provider.",
-      "tech": ["Node.js", "Redis Streams", "Postmark"],
+      "tech": [
+        "Node.js",
+        "Redis Streams",
+        "Postmark"
+      ],
       "group": "backend",
-      "owner": "growth-team",
       "sources": [
-        { "path": "workers/notifications-worker/src/index.ts", "lines": [7, 20] },
+        {
+          "path": "workers/notifications-worker/src/index.ts",
+          "lines": [
+            7,
+            20
+          ]
+        },
         {
           "path": "workers/notifications-worker/src/email.ts",
           "symbol": "sendOrderConfirmation",
-          "lines": [5, 12]
+          "lines": [
+            5,
+            12
+          ]
         }
-      ]
+      ],
+      "owner": "growth-team"
     },
     {
       "id": "stripe",
       "kind": "external",
       "name": "Stripe",
       "summary": "Payment processor: charges cards and reports results by webhook.",
-      "tech": ["Stripe API"],
-      "links": [{ "label": "Stripe dashboard", "url": "https://dashboard.stripe.com" }]
+      "tech": [
+        "Stripe API"
+      ],
+      "links": [
+        {
+          "label": "Stripe dashboard",
+          "url": "https://dashboard.stripe.com"
+        }
+      ]
     },
     {
       "id": "email-service",
       "kind": "external",
       "name": "Email Service",
       "summary": "Postmark delivers transactional emails from templates.",
-      "tech": ["Postmark"],
-      "links": [{ "label": "Postmark docs", "url": "https://postmarkapp.com/developer" }]
+      "tech": [
+        "Postmark"
+      ],
+      "links": [
+        {
+          "label": "Postmark docs",
+          "url": "https://postmarkapp.com/developer"
+        }
+      ]
     }
   ],
   "edges": [
@@ -175,7 +285,15 @@
       "to": "web-app",
       "kind": "http",
       "label": "HTTPS",
-      "sources": [{ "path": "apps/web/app/checkout/page.tsx", "lines": [3, 11] }]
+      "sources": [
+        {
+          "path": "apps/web/app/checkout/page.tsx",
+          "lines": [
+            3,
+            11
+          ]
+        }
+      ]
     },
     {
       "id": "web-app-to-orders-api",
@@ -185,8 +303,20 @@
       "label": "POST /orders",
       "description": "Called from the `placeOrder` server action, with an `idempotency-key` header.",
       "sources": [
-        { "path": "apps/web/app/checkout/actions.ts", "lines": [6, 16] },
-        { "path": "services/orders-api/src/routes/orders.ts", "lines": [8, 27] }
+        {
+          "path": "apps/web/app/checkout/actions.ts",
+          "lines": [
+            6,
+            16
+          ]
+        },
+        {
+          "path": "services/orders-api/src/routes/orders.ts",
+          "lines": [
+            8,
+            27
+          ]
+        }
       ]
     },
     {
@@ -196,8 +326,20 @@
       "kind": "db",
       "label": "orders",
       "sources": [
-        { "path": "services/orders-api/src/routes/orders.ts", "lines": [15, 17] },
-        { "path": "services/orders-api/src/routes/stripe-webhook.ts", "lines": [23, 26] }
+        {
+          "path": "services/orders-api/src/routes/orders.ts",
+          "lines": [
+            15,
+            17
+          ]
+        },
+        {
+          "path": "services/orders-api/src/routes/stripe-webhook.ts",
+          "lines": [
+            23,
+            26
+          ]
+        }
       ]
     },
     {
@@ -207,7 +349,15 @@
       "kind": "cache",
       "label": "SET NX",
       "description": "Claims idempotency keys and Stripe event ids.",
-      "sources": [{ "path": "services/orders-api/src/lib/idempotency.ts", "lines": [7, 14] }]
+      "sources": [
+        {
+          "path": "services/orders-api/src/lib/idempotency.ts",
+          "lines": [
+            7,
+            14
+          ]
+        }
+      ]
     },
     {
       "id": "orders-api-to-payments-queue",
@@ -215,7 +365,15 @@
       "to": "payments-queue",
       "kind": "queue",
       "label": "payment.process",
-      "sources": [{ "path": "services/orders-api/src/routes/orders.ts", "lines": [19, 24] }]
+      "sources": [
+        {
+          "path": "services/orders-api/src/routes/orders.ts",
+          "lines": [
+            19,
+            24
+          ]
+        }
+      ]
     },
     {
       "id": "payments-queue-to-payment-worker",
@@ -223,7 +381,15 @@
       "to": "payment-worker",
       "kind": "queue",
       "label": "consume",
-      "sources": [{ "path": "workers/payment-worker/src/index.ts", "lines": [8, 10] }]
+      "sources": [
+        {
+          "path": "workers/payment-worker/src/index.ts",
+          "lines": [
+            8,
+            10
+          ]
+        }
+      ]
     },
     {
       "id": "payment-worker-to-stripe",
@@ -231,7 +397,15 @@
       "to": "stripe",
       "kind": "http",
       "label": "POST /v1/payment_intents",
-      "sources": [{ "path": "workers/payment-worker/src/index.ts", "lines": [11, 20] }]
+      "sources": [
+        {
+          "path": "workers/payment-worker/src/index.ts",
+          "lines": [
+            11,
+            20
+          ]
+        }
+      ]
     },
     {
       "id": "payment-worker-to-postgres",
@@ -239,7 +413,15 @@
       "to": "postgres",
       "kind": "db",
       "label": "payment status",
-      "sources": [{ "path": "workers/payment-worker/src/index.ts", "lines": [22, 25] }]
+      "sources": [
+        {
+          "path": "workers/payment-worker/src/index.ts",
+          "lines": [
+            22,
+            25
+          ]
+        }
+      ]
     },
     {
       "id": "stripe-to-orders-api",
@@ -249,8 +431,20 @@
       "label": "POST /webhooks/stripe",
       "description": "Signed with `STRIPE_WEBHOOK_SECRET`; the route verifies it with `stripe.webhooks.constructEvent`.",
       "sources": [
-        { "path": "services/orders-api/src/server.ts", "lines": [7, 7] },
-        { "path": "services/orders-api/src/routes/stripe-webhook.ts", "lines": [10, 15] }
+        {
+          "path": "services/orders-api/src/server.ts",
+          "lines": [
+            7,
+            7
+          ]
+        },
+        {
+          "path": "services/orders-api/src/routes/stripe-webhook.ts",
+          "lines": [
+            10,
+            15
+          ]
+        }
       ]
     },
     {
@@ -261,8 +455,20 @@
       "label": "order.confirmed",
       "description": "Published with `XADD` to the `events:orders` Redis stream and read by the `notifications` consumer group.",
       "sources": [
-        { "path": "services/orders-api/src/lib/events.ts", "lines": [5, 7] },
-        { "path": "workers/notifications-worker/src/index.ts", "lines": [11, 14] }
+        {
+          "path": "services/orders-api/src/lib/events.ts",
+          "lines": [
+            5,
+            7
+          ]
+        },
+        {
+          "path": "workers/notifications-worker/src/index.ts",
+          "lines": [
+            11,
+            14
+          ]
+        }
       ]
     },
     {
@@ -271,7 +477,15 @@
       "to": "postgres",
       "kind": "db",
       "label": "read order",
-      "sources": [{ "path": "workers/notifications-worker/src/index.ts", "lines": [15, 15] }]
+      "sources": [
+        {
+          "path": "workers/notifications-worker/src/index.ts",
+          "lines": [
+            15,
+            15
+          ]
+        }
+      ]
     },
     {
       "id": "notifications-worker-to-email-service",
@@ -279,7 +493,15 @@
       "to": "email-service",
       "kind": "http",
       "label": "sendEmailWithTemplate",
-      "sources": [{ "path": "workers/notifications-worker/src/email.ts", "lines": [5, 12] }]
+      "sources": [
+        {
+          "path": "workers/notifications-worker/src/email.ts",
+          "lines": [
+            5,
+            12
+          ]
+        }
+      ]
     },
     {
       "id": "email-service-to-customer",
@@ -300,7 +522,10 @@
           "edge": "customer-to-web-app",
           "title": "Customer submits the checkout form",
           "description": "Stripe Elements tokenizes the card in the browser, so only a `paymentMethodId` leaves the page.",
-          "payload": { "cartId": "cart_8f2k", "paymentMethodId": "pm_1Q2w3E4r" },
+          "payload": {
+            "cartId": "cart_8f2k",
+            "paymentMethodId": "pm_1Q2w3E4r"
+          },
           "durationMs": 300
         },
         {
@@ -310,8 +535,13 @@
           "payload": {
             "method": "POST",
             "path": "/orders",
-            "headers": { "idempotency-key": "6b1f3c2e-9a4d-4f1e-b8a2-0c7d5e9f1a3b" },
-            "body": { "cartId": "cart_8f2k", "paymentMethodId": "pm_1Q2w3E4r" }
+            "headers": {
+              "idempotency-key": "6b1f3c2e-9a4d-4f1e-b8a2-0c7d5e9f1a3b"
+            },
+            "body": {
+              "cartId": "cart_8f2k",
+              "paymentMethodId": "pm_1Q2w3E4r"
+            }
           },
           "durationMs": 120
         },
@@ -322,7 +552,12 @@
           "payload": {
             "command": "SET",
             "key": "idem:6b1f3c2e-9a4d-4f1e-b8a2-0c7d5e9f1a3b",
-            "args": ["1", "EX", 86400, "NX"]
+            "args": [
+              "1",
+              "EX",
+              86400,
+              "NX"
+            ]
           },
           "durationMs": 5
         },
@@ -353,7 +588,9 @@
               "currency": "usd",
               "paymentMethodId": "pm_1Q2w3E4r"
             },
-            "opts": { "attempts": 5 }
+            "opts": {
+              "attempts": 5
+            }
           },
           "durationMs": 8,
           "async": true
@@ -364,7 +601,10 @@
           "description": "The web app redirects to the order page, which polls `GET /orders/:id` until the status changes.",
           "payload": {
             "status": 202,
-            "body": { "orderId": "ord_42", "status": "PENDING_PAYMENT" }
+            "body": {
+              "orderId": "ord_42",
+              "status": "PENDING_PAYMENT"
+            }
           },
           "durationMs": 20,
           "reverse": true
@@ -372,7 +612,11 @@
         {
           "edge": "payments-queue-to-payment-worker",
           "title": "Payment worker picks up the job",
-          "payload": { "jobId": "1734", "name": "payment.process", "attemptsMade": 0 },
+          "payload": {
+            "jobId": "1734",
+            "name": "payment.process",
+            "attemptsMade": 0
+          },
           "durationMs": 400,
           "async": true
         },
@@ -383,13 +627,17 @@
           "payload": {
             "method": "POST",
             "path": "/v1/payment_intents",
-            "headers": { "Idempotency-Key": "order-ord_42" },
+            "headers": {
+              "Idempotency-Key": "order-ord_42"
+            },
             "body": {
               "amount": 5998,
               "currency": "usd",
               "payment_method": "pm_1Q2w3E4r",
               "confirm": true,
-              "metadata": { "orderId": "ord_42" }
+              "metadata": {
+                "orderId": "ord_42"
+              }
             }
           },
           "durationMs": 1800
@@ -414,7 +662,9 @@
                 "id": "pi_3Pq9",
                 "amount": 5998,
                 "status": "succeeded",
-                "metadata": { "orderId": "ord_42" }
+                "metadata": {
+                  "orderId": "ord_42"
+                }
               }
             }
           },
@@ -428,7 +678,12 @@
           "payload": {
             "command": "SET",
             "key": "stripe-event:evt_3Pq9",
-            "args": ["1", "EX", 86400, "NX"]
+            "args": [
+              "1",
+              "EX",
+              86400,
+              "NX"
+            ]
           },
           "durationMs": 5
         },
@@ -437,8 +692,13 @@
           "title": "Order marked CONFIRMED",
           "payload": {
             "table": "Order",
-            "where": { "id": "ord_42" },
-            "update": { "status": "CONFIRMED", "paidAt": "2026-11-08T10:15:42Z" }
+            "where": {
+              "id": "ord_42"
+            },
+            "update": {
+              "status": "CONFIRMED",
+              "paidAt": "2026-11-08T10:15:42Z"
+            }
           },
           "durationMs": 12
         },
@@ -447,7 +707,10 @@
           "title": "order.confirmed published",
           "payload": {
             "stream": "events:orders",
-            "fields": { "type": "order.confirmed", "data": "{\"orderId\":\"ord_42\"}" }
+            "fields": {
+              "type": "order.confirmed",
+              "data": "{\"orderId\":\"ord_42\"}"
+            }
           },
           "durationMs": 4,
           "async": true
@@ -456,7 +719,9 @@
           "edge": "stripe-to-orders-api",
           "title": "API acknowledges with 200",
           "description": "Any non-2xx answer makes Stripe retry the webhook with backoff for up to 3 days.",
-          "payload": { "status": 200 },
+          "payload": {
+            "status": 200
+          },
           "durationMs": 10,
           "reverse": true
         }
@@ -475,7 +740,9 @@
           "payload": {
             "id": "1731060942000-0",
             "type": "order.confirmed",
-            "data": { "orderId": "ord_42" }
+            "data": {
+              "orderId": "ord_42"
+            }
           },
           "durationMs": 600,
           "async": true
@@ -483,7 +750,15 @@
         {
           "edge": "notifications-worker-to-postgres",
           "title": "Worker loads the order and its items",
-          "payload": { "table": "Order", "where": { "id": "ord_42" }, "include": ["items"] },
+          "payload": {
+            "table": "Order",
+            "where": {
+              "id": "ord_42"
+            },
+            "include": [
+              "items"
+            ]
+          },
           "durationMs": 10
         },
         {
@@ -497,7 +772,12 @@
             "TemplateModel": {
               "orderId": "ord_42",
               "total": 5998,
-              "items": [{ "name": "Mechanical keyboard", "quantity": 1 }]
+              "items": [
+                {
+                  "name": "Mechanical keyboard",
+                  "quantity": 1
+                }
+              ]
             }
           },
           "durationMs": 300

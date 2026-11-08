@@ -42,6 +42,9 @@ export function Timeline({
 
   return (
     <div className={styles.timeline} aria-label={`Replay of ${flow.name}`}>
+      <p className={styles.announcement} aria-live="polite">
+        Step {index + 1} of {flow.steps.length}: {flow.steps[index]?.title}
+      </p>
       <div className={styles.controls}>
         <button type="button" className={styles.button} onClick={onRestart} title="Restart">
           <RotateCcw size={16} />

@@ -56,6 +56,27 @@ describe("ArchbookConfigSchema", () => {
   });
 });
 
+describe("detected signals", () => {
+  const detected = (signal: unknown) =>
+    validateConfig({ version: "0.1", project: { name: "Shop" }, detected: [signal] });
+
+  it("accepts a signal with or without a recipe", () => {
+    expect(detected({ name: "Docker" }).config?.detected).toEqual([{ name: "Docker", files: [] }]);
+    expect(
+      detected({ name: "BullMQ", files: ["package.json"], recipe: "bullmq.md" }).config?.detected,
+    ).toEqual([{ name: "BullMQ", files: ["package.json"], recipe: "bullmq.md" }]);
+  });
+
+  it.each(["bullmq", "BullMQ.md", "../bullmq.md", "recipes/bullmq.md", "_template.md", ""])(
+    "rejects the recipe %j",
+    (recipe) => {
+      expect(detected({ name: "BullMQ", recipe }).errors.map((issue) => issue.path)).toEqual([
+        ["detected", 0, "recipe"],
+      ]);
+    },
+  );
+});
+
 describe("validateConfig", () => {
   it("returns the config with defaults when valid", () => {
     const result = validateConfig({ version: "0.1", project: { name: "Shop" } });

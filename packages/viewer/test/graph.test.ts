@@ -1,26 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { ArchitectureSchema, type Architecture } from "@archbook/schema";
-import { buildElements } from "../src/graph/elements";
 import {
-  emphasisOf,
-  flowHighlight,
-  selectionHighlight,
+  ArchitectureSchema,
+  indexArchitecture,
   stepEndpoints,
-} from "../src/graph/highlight";
+  type Architecture,
+} from "@archbook/schema";
+import { buildElements } from "../src/graph/elements";
+import { emphasisOf, flowHighlight, selectionHighlight } from "../src/graph/highlight";
 import {
   GROUP_PADDING,
   NODE_HEIGHT,
   NODE_WIDTH,
   applyManualPositions,
+  createLayoutEngine,
+  drawableEdges,
   groupNodeId,
   layoutArchitecture,
   toElkGraph,
   visibleGroups,
   type Layout,
+  type WorkerConstructor,
 } from "../src/graph/layout";
+import { flowUsages } from "../src/graph/usage";
+import { edgeLabelName, elementLabels } from "../src/components/canvas/labels";
 import { example } from "./example";
 
 const checkout = example.flows.find((flow) => flow.id === "checkout")!;
+const exampleIndex = indexArchitecture(example);
 
 describe("layout", () => {
   it("orders groups parents first and hides empty groups", () => {
@@ -97,6 +103,86 @@ describe("layout", () => {
   });
 });
 
+describe("layout engine", () => {
+  const graph = () => toElkGraph(example);
+  const laidOut = (result: { children?: Array<{ x?: number }> }) =>
+    result.children?.some((child) => (child.x ?? 0) > 0) ?? false;
+
+  type Reply = { data?: unknown; error?: unknown } | "load-error";
+
+  /** Answers like elk-worker: `{ id, data }` or `{ id, error }` per message. */
+  function fakeWorker(reply: (message: { id: number; cmd: string }) => Reply) {
+    const created: string[] = [];
+    class FakeWorker extends EventTarget {
+      onmessage: ((event: { data: unknown }) => void) | null = null;
+      constructor(url: string) {
+        super();
+        created.push(url);
+      }
+      postMessage(message: { id: number; cmd: string }) {
+        setTimeout(() => {
+          const answer = reply(message);
+          if (answer === "load-error") this.dispatchEvent(new Event("error"));
+          else this.onmessage?.({ data: { id: message.id, ...answer } });
+        });
+      }
+      terminate() {}
+    }
+    return { Worker: FakeWorker as unknown as WorkerConstructor, created };
+  }
+
+  it("lays out on the calling thread without Worker", async () => {
+    expect(laidOut(await createLayoutEngine(undefined).layout(graph()))).toBe(true);
+  });
+
+  it("uses the worker when there is one", async () => {
+    const marker = { id: "root", children: [{ id: "from-worker", x: 1 }] };
+    const fake = fakeWorker((message) => (message.cmd === "layout" ? { data: marker } : {}));
+    expect(await createLayoutEngine(fake.Worker).layout(graph())).toEqual(marker);
+    expect(fake.created).toHaveLength(1);
+    expect(fake.created[0]).toContain("elk-worker");
+  });
+
+  it("falls back when the worker cannot be created", async () => {
+    const Throwing = class {
+      constructor() {
+        throw new Error("blocked");
+      }
+    } as unknown as WorkerConstructor;
+    expect(laidOut(await createLayoutEngine(Throwing).layout(graph()))).toBe(true);
+  });
+
+  it("falls back when the worker fails to load, and keeps using the fallback", async () => {
+    const fake = fakeWorker(() => "load-error");
+    const engine = createLayoutEngine(fake.Worker);
+    expect(laidOut(await engine.layout(graph()))).toBe(true);
+    expect(laidOut(await engine.layout(graph()))).toBe(true);
+    expect(fake.created).toHaveLength(1);
+  });
+
+  it("reports a graph the worker rejects instead of laying it out again", async () => {
+    const fake = fakeWorker((message) =>
+      message.cmd === "layout" ? { error: new Error("bad graph") } : {},
+    );
+    await expect(createLayoutEngine(fake.Worker).layout(graph())).rejects.toThrow("bad graph");
+  });
+});
+
+describe("drawableEdges", () => {
+  it("skips self-loops and edges with a missing endpoint", () => {
+    const [first] = example.edges;
+    const arch: Architecture = {
+      ...example,
+      edges: [
+        first!,
+        { ...first!, id: "loop", to: first!.from },
+        { ...first!, id: "dangling", to: "missing" },
+      ],
+    };
+    expect(drawableEdges(arch).map((edge) => edge.id)).toEqual([first!.id]);
+  });
+});
+
 describe("buildElements", () => {
   it("puts parents before children and links nodes to their group", async () => {
     const layout = await layoutArchitecture(example);
@@ -109,19 +195,50 @@ describe("buildElements", () => {
     expect(nodes.find((node) => node.id === "customer")!.parentId).toBeUndefined();
     expect(edges.map((edge) => edge.id)).toEqual(example.edges.map((edge) => edge.id));
   });
+
+  it("names nodes and unlabelled edges, and leaves labelled edges to their label button", async () => {
+    const [first, ...rest] = example.edges;
+    const arch: Architecture = { ...example, edges: [{ ...first!, label: undefined }, ...rest] };
+    const { nodes, edges } = buildElements(
+      arch,
+      await layoutArchitecture(arch),
+      elementLabels(arch.nodes),
+    );
+
+    const node = nodes.find((item) => item.id === "orders-api")!;
+    expect(node.ariaLabel).toBe(
+      `${arch.nodes.find((item) => item.id === "orders-api")!.name}, Service`,
+    );
+    expect(nodes.find((item) => item.type === "group")!.focusable).toBe(false);
+
+    const unlabelled = edges[0]!;
+    expect(unlabelled.focusable).toBeUndefined();
+    expect(unlabelled.ariaLabel).toMatch(/^HTTP from .+ to .+$/);
+
+    const labelled = edges[1]!;
+    expect(labelled.focusable).toBe(false);
+    expect(labelled.domAttributes).toEqual({ "aria-hidden": true });
+    expect(labelled.ariaLabel).toBeUndefined();
+  });
+
+  it("names labelled edges by kind and label", () => {
+    const edge = example.edges.find((item) => item.kind === "http" && item.label)!;
+    expect(elementLabels(example.nodes).edge(edge)).toBe(`HTTP: ${edge.label}`);
+    expect(edgeLabelName(edge, edge.label!)).toBe(`HTTP: ${edge.label}`);
+  });
 });
 
 describe("highlight", () => {
   it("follows reverse steps from the edge target", () => {
     const reverseIndex = checkout.steps.findIndex((step) => step.reverse);
-    expect(stepEndpoints(example, checkout, reverseIndex)).toEqual({
+    expect(stepEndpoints(exampleIndex, checkout, reverseIndex)).toEqual({
       from: "orders-api",
       to: "web-app",
     });
   });
 
   it("marks the current step active, earlier steps visited and the rest dimmed", () => {
-    const highlight = flowHighlight(example, checkout, 1, 800);
+    const highlight = flowHighlight(exampleIndex, checkout, 1, 800);
     expect([...highlight.activeNodes]).toEqual(["web-app", "orders-api"]);
     expect(emphasisOf(highlight, "customer", "node")).toBe("visited");
     expect(emphasisOf(highlight, "customer-to-web-app", "edge")).toBe("visited");
@@ -134,10 +251,26 @@ describe("highlight", () => {
   });
 
   it("highlights a selected node with its neighbors", () => {
-    const highlight = selectionHighlight(example, "redis");
+    const highlight = selectionHighlight(exampleIndex, "redis");
     expect(emphasisOf(highlight, "redis", "node")).toBe("active");
     expect(emphasisOf(highlight, "orders-api", "node")).toBe("visited");
     expect(emphasisOf(highlight, "stripe", "node")).toBe("dimmed");
-    expect(selectionHighlight(example, "nope").focused).toBe(false);
+    expect(selectionHighlight(exampleIndex, "nope").focused).toBe(false);
+  });
+});
+
+describe("flowUsages", () => {
+  it("lists flows in document order with ascending 1-based steps", () => {
+    const edges = [...checkout.steps].reverse().map((step) => step.edge);
+    const [usage, ...others] = flowUsages(exampleIndex, edges);
+    expect(usage!.flow).toBe(checkout);
+    expect(usage!.steps).toEqual(checkout.steps.map((_, i) => i + 1));
+    const order = example.flows.map((flow) => flow.id);
+    const ids = [usage!, ...others].map((u) => u.flow.id);
+    expect(ids).toEqual(order.filter((id) => ids.includes(id)));
+  });
+
+  it("returns nothing for edges no flow uses", () => {
+    expect(flowUsages(exampleIndex, ["nope"])).toEqual([]);
   });
 });

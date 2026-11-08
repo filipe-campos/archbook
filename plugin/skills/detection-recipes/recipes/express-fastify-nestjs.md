@@ -1,3 +1,13 @@
+---
+detect:
+  - name: Express
+    packages: [express]
+  - name: Fastify
+    packages: [fastify]
+  - name: NestJS
+    packages: ["@nestjs/core"]
+---
+
 # Express, Fastify and NestJS (HTTP servers)
 
 Detects HTTP servers and their routes. Produces `service` nodes (or `app` for servers that render pages) and the receiving side of `http`, `websocket` and `grpc` edges. Koa, Hono and hapi follow the Express rules.

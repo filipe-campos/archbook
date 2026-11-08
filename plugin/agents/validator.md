@@ -32,7 +32,12 @@ You make `archbook/architecture.json` pass validation without losing information
 
 ## Warnings
 
-`isolated-node`, `node-without-sources` and `discontinuous-flow` may remain. Do not invent edges or sources to clear them. Fix one only when the evidence is already in the file or in code you opened, for example a `discontinuous-flow` whose step is clearly a queue or webhook hand-off and should be `async`.
+`isolated-node`, `node-without-sources`, `discontinuous-flow`, `self-loop-edge`, `duplicate-edge` and `empty-group` may remain. Do not invent edges, sources or nodes to clear them. Fix one only when the evidence is already in the file or in code you opened:
+
+- `discontinuous-flow`: when the step is clearly a queue or webhook hand-off, mark it `async`.
+- `duplicate-edge`: merge the later edge into the one the message names. Combine labels (the main route or resource), descriptions and sources, point every flow step that used the later id at the earlier edge, then delete the later edge. Keep both only when their labels show distinct operations that flows need to tell apart.
+- `self-loop-edge`: the viewer does not draw it. When the code shows the call reaches another node, point the edge there. Otherwise move what it describes into the node's `description`, and remove the edge together with the flow steps that use it, saying so in your reply.
+- `empty-group`: when the `sources` of existing nodes show they run inside the group, set their `group`. Otherwise leave it and report it.
 
 ## Output
 

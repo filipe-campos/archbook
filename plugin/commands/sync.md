@@ -1,6 +1,6 @@
 ---
 description: Update archbook/architecture.json to match code changes since it was generated, keeping ids stable
-allowed-tools: Read, Glob, Grep, Skill, Agent, Edit(./archbook/architecture.json), Bash(archbook validate *), Bash(archbook snapshot *), Bash(archbook --version *), Bash(npx archbook validate *), Bash(npx archbook snapshot *), Bash(npx archbook --version *), Bash(git log *), Bash(git diff *), Bash(git status *)
+allowed-tools: Read, Glob, Grep, Skill, Agent, Edit(./archbook/architecture.json), Edit(./archbook/.drafts/**), Bash(archbook validate *), Bash(archbook snapshot *), Bash(archbook merge *), Bash(archbook format *), Bash(npx archbook validate *), Bash(npx archbook snapshot *), Bash(npx archbook merge *), Bash(npx archbook format *), Bash(git log *), Bash(git diff *), Bash(git status *)
 ---
 
 # Sync the architecture document with the code
@@ -9,7 +9,7 @@ Update `archbook/architecture.json` for what changed in the code since it was ge
 
 ## Ground rules
 
-- Only edit `archbook/architecture.json`; never project source code.
+- Only edit `archbook/architecture.json` and the drafts in `archbook/.drafts/`; never project source code.
 - Never cite a file nobody opened or listed. `lines` only for ranges someone read.
 - Prefer fewer, well-explained nodes over many shallow ones; respect `detailLevel`.
 - Stable ids: reuse existing ids; new ids are kebab-case and descriptive (`billing-api`, `billing-api-to-postgres`).
@@ -47,9 +47,9 @@ Build the change list grouped as **Add**, **Update** and **Remove**. Each item n
 
 ## 5. Apply
 
-1. Run `npx archbook snapshot --op sync`. If it fails, stop and report the error. Keep the value of the `Time: <ISO 8601 UTC>` line it prints.
-2. Apply the approved items with targeted Edit calls. When merging scanner or tracer output, reuse an existing edge with the same `from`, `to` and `kind` instead of adding one.
-3. Set `generatedAt` to the snapshot timestamp and `generatedBy` to `archbook@<version> + claude-code`, with the version from `npx archbook --version`.
+1. Run `npx archbook snapshot --op sync`. If it fails, stop and report the error. Keep the values of the `Time: <ISO 8601 UTC>` and `Generated-By: <value>` lines it prints.
+2. Apply the approved updates and removals with targeted Edit calls. Approved additions from scanner or tracer output go through the CLI: write a draft with only those elements to `archbook/.drafts/<name>.json` (`{ groups, nodes, edges }` for the scanner, the tracer's `{ flow, newEdges, newNodes }` as is) and run `npx archbook merge --draft archbook/.drafts/<name>.json`. It adds only ids that are new, reuses an existing edge with the same `from`, `to` and `kind`, points flow steps at the result and replaces a re-traced flow with the same id. When its report says `written: false`, fix the draft and run it again.
+3. Set `generatedAt` to the `Time:` value and `generatedBy` to the `Generated-By:` value.
 4. Launch `archbook:writer` for the added elements and those whose behavior changed. Its prompt: `audience`, `language`, `detailLevel`, their ids, and the evidence you collected for each.
 5. Launch `archbook:validator`, then run `npx archbook validate` yourself as the final check.
 

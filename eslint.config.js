@@ -6,7 +6,9 @@ import tseslint from "typescript-eslint";
 
 const NODE_BUILTINS = ["fs", "path", "os", "child_process", "url", "crypto"];
 const OUTPUT_ONLY = "Commands print through the Output port in context.output.";
-const BROWSER_SAFE = "The main @archbook/schema entry must stay browser-safe; use src/node.ts.";
+const BROWSER_SAFE =
+  "The main @archbook/schema entry must stay browser-safe; Node code goes through src/node.ts.";
+const PURE_VIEWER = "graph/ and lib/ stay pure; React and icons belong in components/.";
 
 export default defineConfig(
   {
@@ -36,11 +38,30 @@ export default defineConfig(
     languageOptions: { globals: globals.browser },
   },
   {
+    files: ["packages/viewer/src/graph/**/*.ts", "packages/viewer/src/lib/**/*.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            ...["react", "react-dom", "lucide-react"].map((name) => ({
+              name,
+              message: PURE_VIEWER,
+            })),
+            { name: "@xyflow/react", allowTypeImports: true, message: PURE_VIEWER },
+          ],
+          patterns: [{ group: ["react/*", "react-dom/*"], message: PURE_VIEWER }],
+        },
+      ],
+    },
+  },
+  {
     files: [
       "packages/cli/**/*.{ts,mjs}",
       "packages/schema/**/*.{ts,mjs}",
       "**/*.config.ts",
       "**/scripts/**",
+      "e2e/**",
     ],
     languageOptions: { globals: globals.node },
   },
@@ -126,7 +147,7 @@ export default defineConfig(
   },
   {
     files: ["packages/schema/src/**/*.ts"],
-    ignores: ["packages/schema/src/node.ts"],
+    ignores: ["packages/schema/src/node.ts", "packages/schema/src/live-reload.ts"],
     rules: {
       "@typescript-eslint/no-restricted-imports": [
         "error",
@@ -134,7 +155,12 @@ export default defineConfig(
           paths: NODE_BUILTINS.map((name) => ({ name, message: BROWSER_SAFE })),
           patterns: [
             {
-              group: ["node:*", ...NODE_BUILTINS.map((name) => `/${name}/*`), "./node.js"],
+              group: [
+                "node:*",
+                ...NODE_BUILTINS.map((name) => `/${name}/*`),
+                "./node.js",
+                "./live-reload.js",
+              ],
               message: BROWSER_SAFE,
             },
           ],

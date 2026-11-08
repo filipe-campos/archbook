@@ -1,10 +1,11 @@
 import { memo, useEffect, useRef } from "react";
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "@xyflow/react";
 import { cx } from "../../lib/cx";
-import { useCanvasActions } from "../../graph/actions";
 import type { CanvasEdge } from "../../graph/elements";
-import { emphasisOf, useHighlight, type Emphasis } from "../../graph/highlight";
-import { EDGE_KIND_STYLES } from "../../graph/kinds";
+import { emphasisOf, type Emphasis } from "../../graph/highlight";
+import { EDGE_KIND_STYLES } from "../kinds";
+import { useCanvasActions, useHighlight } from "./context";
+import { edgeLabelName } from "./labels";
 import styles from "./Canvas.module.css";
 
 const EDGE_CLASS: Record<Emphasis, string | undefined> = {
@@ -60,7 +61,8 @@ export const ArchEdgeView = memo(function ArchEdgeView(props: EdgeProps<CanvasEd
       )}
       {data.edge.label && (
         <EdgeLabelRenderer>
-          <div
+          <button
+            type="button"
             className={cx(
               styles.edgeLabel,
               "nodrag",
@@ -69,11 +71,12 @@ export const ArchEdgeView = memo(function ArchEdgeView(props: EdgeProps<CanvasEd
               emphasis === "dimmed" && styles.edgeLabelDimmed,
             )}
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
-            title={`${kind.label}: ${data.edge.label}`}
+            title={edgeLabelName(data.edge, data.edge.label)}
+            aria-label={edgeLabelName(data.edge, data.edge.label)}
             onClick={() => actions.select(id)}
           >
             {data.edge.label}
-          </div>
+          </button>
         </EdgeLabelRenderer>
       )}
     </>

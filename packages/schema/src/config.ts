@@ -16,9 +16,15 @@ export const DetailLevelSchema = z
 export const DEFAULT_IGNORE = ["node_modules", "dist", "build", ".git", "vendor"];
 export const DEFAULT_HISTORY_LIMIT = 20;
 
+export const RecipeFileSchema = z
+  .string()
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/, "Expected a kebab-case Markdown file name")
+  .describe("File name of a detection recipe in the detection-recipes skill, e.g. 'bullmq.md'.");
+
 export const DetectedSignalSchema = z.strictObject({
   name: z.string().min(1).describe("What was detected, e.g. 'Docker Compose'."),
   files: z.array(z.string()).default([]).describe("Files that revealed it."),
+  recipe: RecipeFileSchema.optional().describe("The detection recipe that covers it, if any."),
 });
 
 export const ArchbookConfigSchema = z

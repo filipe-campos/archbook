@@ -194,6 +194,9 @@ Rough, round, typical values. They pace the replay; they are not SLAs. Do not us
 | `isolated-node`        | warning | Node without edges. Add the edge the code shows, or drop the node.                                                                              |
 | `node-without-sources` | warning | Non-external, non-actor node without sources. Cite its entry point or definition.                                                               |
 | `discontinuous-flow`   | warning | Non-async step starts at an unreached node. Add the missing step, reorder, use `reverse`, or mark it `async`.                                   |
+| `self-loop-edge`       | warning | Edge from a node to itself; not drawn. Move the detail into the node, or point the edge at the real target.                                     |
+| `duplicate-edge`       | warning | Same `from`, `to` and `kind` as an earlier edge. Merge into the earlier edge and repoint flow steps.                                            |
+| `empty-group`          | warning | Group with no nodes at any depth; not drawn. Move its nodes into it or remove it.                                                               |
 
 ## Good vs bad
 
@@ -230,8 +233,8 @@ Good: one `orders-api-to-postgres` edge labelled `orders`, citing both call site
 - [ ] No unknown keys anywhere (`summary`, `durationMs`, `repoUrl`, `defaultBranch` spelled exactly).
 - [ ] Every id is kebab-case, unique in its collection, and reused from the existing file where the component still exists.
 - [ ] Node kinds and the number of nodes match the configured `detailLevel`; no node per file, router or library at `medium`.
-- [ ] Every edge `from`/`to` is a node id, every `group`/`parent` is a group id, every step `edge` is an edge id.
-- [ ] Edge direction follows the rules (queue to consumer, client to store, provider to webhook receiver); no response edges; no duplicate edges for the same pair and kind.
+- [ ] Every edge `from`/`to` is a node id, every `group`/`parent` is a group id, every step `edge` is an edge id; every group holds at least one node.
+- [ ] Edge direction follows the rules (queue to consumer, client to store, provider to webhook receiver); no response edges; no duplicate edges for the same pair and kind; no edge from a node to itself.
 - [ ] Every source path was seen in this session, is root-relative with forward slashes, and its `lines` come from Read output.
 - [ ] Every node except `external` and `actor` has sources; every node has at least one edge.
 - [ ] Every flow has a concrete trigger; non-async steps start at reached nodes; `async` and `reverse` are used as defined above.

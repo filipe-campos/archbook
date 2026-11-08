@@ -43,7 +43,8 @@ async function run(root: string, signal?: AbortSignal) {
 
 const RESTORED = "Restored archbook/architecture.json to its state before generation.";
 
-describe("generate", () => {
+// `generate` spawns `claude` without a shell, and Windows cannot run a .mjs file that way.
+describe.skipIf(process.platform === "win32")("generate", () => {
   it("writes the generated document, after a snapshot of the previous one", async () => {
     const previous = minimalDocument(["api"]);
     const { root, paths, calls } = setup("success", previous);
@@ -170,7 +171,9 @@ describe("generate", () => {
     expect(prompts[1]).toContain("archbook:scanner");
     expect(existsSync(paths.architecture)).toBe(true);
   });
+});
 
+describe("generate prerequisites", () => {
   it("requires archbook init first", async () => {
     const root = tempProject();
     await expect(run(root)).rejects.toThrow(/archbook init/);

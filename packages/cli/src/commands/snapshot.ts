@@ -1,9 +1,10 @@
 import pc from "picocolors";
+import { ARCHITECTURE_SCHEMA_URL } from "@archbook/schema";
 import { historyLimit } from "../core/config.js";
 import { WARN_UNCOMMITTED_OPERATIONS, createSnapshot } from "../core/history.js";
 import { relativePath } from "../core/project.js";
 import { hasUncommittedChanges } from "../io/git.js";
-import { VERSION } from "../package.js";
+import { GENERATED_BY, VERSION } from "../package.js";
 import { resolvePaths, type CommandContext } from "./context.js";
 
 const isoNow = () => new Date().toISOString().replace(/\.\d{3}Z$/, "Z");
@@ -33,5 +34,7 @@ export function snapshotCommand(options: { op: string }, context: CommandContext
       : `Snapshot ${snapshot.id} already holds the current architecture.json; nothing new to save.`,
   );
   output.line(`Time: ${isoNow()}`);
+  output.line(`Schema: ${ARCHITECTURE_SCHEMA_URL}`);
+  output.line(`Generated-By: ${GENERATED_BY}`);
   return 0;
 }

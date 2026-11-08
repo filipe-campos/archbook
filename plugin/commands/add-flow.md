@@ -1,7 +1,7 @@
 ---
 description: Trace one flow through the code and add it to archbook/architecture.json, or update it if it already exists
 argument-hint: <flow description>
-allowed-tools: Read, Glob, Grep, Skill, Agent, Edit(./archbook/architecture.json), Bash(archbook validate *), Bash(archbook snapshot *), Bash(archbook --version *), Bash(npx archbook validate *), Bash(npx archbook snapshot *), Bash(npx archbook --version *)
+allowed-tools: Read, Glob, Grep, Skill, Agent, Edit(./archbook/architecture.json), Edit(./archbook/.drafts/**), Bash(archbook validate *), Bash(archbook snapshot *), Bash(archbook merge *), Bash(archbook format *), Bash(npx archbook validate *), Bash(npx archbook snapshot *), Bash(npx archbook merge *), Bash(npx archbook format *)
 ---
 
 # Add a flow
@@ -12,7 +12,7 @@ Trace this flow through the real code and add it to `archbook/architecture.json`
 
 ## Ground rules
 
-- Only edit `archbook/architecture.json`; never project source code. Change only this flow and the edges and nodes it truly needs. Leave everything else as it is, including `generatedAt`, which `/archbook:sync` uses as its baseline.
+- Only edit `archbook/architecture.json` and the drafts in `archbook/.drafts/`; never project source code. Change only this flow and the edges and nodes it truly needs. Leave everything else as it is, including `generatedAt`, which `/archbook:sync` uses as its baseline.
 - Never cite a file nobody opened or listed. `lines` only for ranges someone read.
 - Reuse existing edges and nodes before adding new ones; respect `detailLevel`.
 - Stable ids: reuse existing ids; new ids are kebab-case and descriptive (`refund-order`, `orders-api-to-stripe`).
@@ -27,11 +27,11 @@ Trace this flow through the real code and add it to `archbook/architecture.json`
 4. Run `npx archbook snapshot --op add-flow`. If it fails, stop and report the error.
 5. Launch `archbook:flow-tracer` with the Agent tool. Its prompt: the flow description verbatim, the flow id, `audience`, `language`, `detailLevel`, `ignore`, every node (id, kind, name, group, source paths), every edge (id, from, to, kind, label, source paths), and the existing flow object when you are updating one. It returns `{ flow, newEdges, newNodes, notes }`.
 6. If the tracer could not find the flow in the code, report that with its notes and stop without editing.
-7. Merge with targeted Edit calls, never rewriting unrelated parts of the file:
-   - For each `newEdges` entry: if an edge with the same `from`, `to` and `kind` exists, use its id in the steps instead. Otherwise add the edge with an id unique among edges.
-   - Add a `newNodes` entry only if a step needs it and no existing node is the same component. Put it in the most fitting existing group.
-   - Append the flow to `flows`, or replace the existing flow with the same id. Omit `async` and `reverse` when they are `false`.
-8. Launch `archbook:writer`. Its prompt: `audience`, `language`, `detailLevel`, the flow id, the ids of the nodes and edges you added, and the tracer's notes, with the instruction to touch nothing else.
+7. Merge through the CLI, which leaves the rest of the file as it is:
+   - Edit the tracer's output before you write it: keep a `newNodes` entry only if a step needs it and no existing node is the same component (otherwise point its `newEdges` at the existing node id), and set each new node's `group` to the most fitting existing group.
+   - Write it to `archbook/.drafts/flow-<flow id>.json` and run `npx archbook merge --draft archbook/.drafts/flow-<flow id>.json`. The merge adds nodes whose id is new, reuses an existing edge with the same `from`, `to` and `kind`, gives a clashing edge id a numeric suffix, points the steps at the result, and replaces the flow with the same id or appends it.
+   - Its JSON report lists what was `added`, `reused`, `renamed` and `replaced`. When `written` is `false`, the result failed the schema and nothing changed: fix the draft and run the command again.
+8. Launch `archbook:writer`. Its prompt: `audience`, `language`, `detailLevel`, the flow id, the ids of the nodes and edges the merge added, and the tracer's notes, with the instruction to touch nothing else.
 9. Launch `archbook:validator`, then run `npx archbook validate` yourself as the final check.
 
 ## Report

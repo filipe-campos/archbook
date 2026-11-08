@@ -1,18 +1,15 @@
-import ReactMarkdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { lazy, Suspense } from "react";
 import styles from "./Panel.module.css";
 
-const components: Components = {
-  a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer noopener" />,
-};
+// react-markdown and remark-gfm are loaded on first use, since only descriptions need them.
+const MarkdownContent = lazy(() => import("./MarkdownContent"));
 
-/** Renders untrusted Markdown; raw HTML is ignored by react-markdown. */
 export function Markdown({ children }: { children: string }) {
   return (
     <div className={styles.markdown}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {children}
-      </ReactMarkdown>
+      <Suspense fallback={<p>{children}</p>}>
+        <MarkdownContent>{children}</MarkdownContent>
+      </Suspense>
     </div>
   );
 }

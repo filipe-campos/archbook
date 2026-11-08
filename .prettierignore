@@ -4,3 +4,5 @@ packages/cli/viewer/
 packages/cli/plugin/
 packages/cli/schema/
 examples/**/archbook/.history/
+# Formatted by `archbook format`, checked in CI with `archbook format --check`.
+examples/**/archbook/architecture.json

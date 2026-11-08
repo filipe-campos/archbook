@@ -187,6 +187,7 @@
   position: absolute;
   pointer-events: all;
   max-width: 200px;
+  margin: 0;
   padding: 2px 7px;
   border-radius: 999px;
   font-size: 11.5px;

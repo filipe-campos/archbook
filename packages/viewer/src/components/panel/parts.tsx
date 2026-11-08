@@ -1,7 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { ExternalLink, FileCode } from "lucide-react";
 import type { ArchNode, Architecture, SourceRef } from "@archbook/schema";
-import { NODE_KIND_STYLES } from "../../graph/kinds";
+import { NODE_KIND_STYLES } from "../kinds";
 import { safeHref } from "../../lib/safeUrl";
 import { formatSourceLabel, sourceUrl } from "../../lib/sourceUrl";
 import styles from "./Panel.module.css";

@@ -1,5 +1,5 @@
 export const GITIGNORE_HEADER = "# Archbook";
-export const GITIGNORE_LINES = ["archbook/.history/", "archbook/dist/"];
+export const GITIGNORE_LINES = ["archbook/.history/", "archbook/.drafts/", "archbook/dist/"];
 
 /**
  * Text to append so `existing` contains every line, or undefined when nothing is missing. The

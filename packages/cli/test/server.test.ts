@@ -54,12 +54,17 @@ describe("dev server", () => {
     const decoder = new TextDecoder();
     await reader.read();
 
-    setTimeout(() => writeFileSync(file, minimalDocument(["api", "worker"])), 100);
+    // The watcher may report the file's creation first; the write must not outlive the test.
+    const write = setTimeout(() => writeFileSync(file, minimalDocument(["api", "worker"])), 100);
     let received = "";
-    while (!received.includes("event: change")) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      received += decoder.decode(value);
+    try {
+      while (!received.includes("event: change")) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        received += decoder.decode(value);
+      }
+    } finally {
+      clearTimeout(write);
     }
     expect(received).toContain("event: change");
     await reader.cancel();

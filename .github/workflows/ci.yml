@@ -25,12 +25,49 @@ jobs:
       - run: pnpm format:check
       - run: pnpm build
       - run: pnpm typecheck
-      - run: pnpm test
+      - run: pnpm test:coverage
       - name: Validate the example
         run: node packages/cli/dist/index.js validate --cwd examples/shop-checkout
+      - name: Check the example is formatted
+        run: node packages/cli/dist/index.js format --check --cwd examples/shop-checkout
 
-  cli-runtime:
-    name: CLI smoke test on Node 20
+  e2e:
+    name: Viewer end to end (Chromium)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Read the Playwright version
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+      - name: Cache the Playwright browsers
+        id: browsers
+        uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Install Chromium
+        if: steps.browsers.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install Chromium's system dependencies
+        if: steps.browsers.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+      - run: pnpm test:e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-traces
+          path: e2e/test-results/
+          retention-days: 7
+
+  package-smoke:
+    name: Installed package on Node 20.12
     needs: check
     runs-on: ubuntu-latest
     steps:
@@ -42,13 +79,54 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
+      - name: Pack the CLI
+        run: pnpm --filter archbook pack --pack-destination "$RUNNER_TEMP/pack"
       - uses: actions/setup-node@v7
         with:
-          node-version: 20
-      - name: Run the built CLI on Node 20
+          node-version: "20.12"
+      - name: Install the tarball in a clean folder
+        working-directory: ${{ runner.temp }}
         run: |
-          node packages/cli/dist/index.js --version
-          node packages/cli/dist/index.js validate --cwd examples/shop-checkout
-          node packages/cli/dist/index.js build --cwd examples/shop-checkout --out "$RUNNER_TEMP/site"
+          mkdir install
+          cd install
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund "$RUNNER_TEMP"/pack/archbook-*.tgz
+          echo "$RUNNER_TEMP/install/node_modules/.bin" >> "$GITHUB_PATH"
+      - name: Run the installed CLI on the example
+        run: |
+          node --version
+          archbook --version
+          archbook validate --cwd examples/shop-checkout
+          archbook format --check --cwd examples/shop-checkout
+          archbook build --cwd examples/shop-checkout --out "$RUNNER_TEMP/site"
           test -f "$RUNNER_TEMP/site/index.html"
           test -f "$RUNNER_TEMP/site/architecture.json"
+      - name: init and remove leave a project as it was
+        working-directory: ${{ runner.temp }}
+        run: |
+          mkdir project
+          cd project
+          printf '{ "name": "demo" }\n' > package.json
+          printf 'node_modules\n' > .gitignore
+          tree() { find . | sort; find . -type f -exec sha256sum {} + | sort; }
+          tree > "$RUNNER_TEMP/before.txt"
+          archbook init --yes
+          test -f archbook/config.json
+          archbook remove --yes
+          tree > "$RUNNER_TEMP/after.txt"
+          diff "$RUNNER_TEMP/before.txt" "$RUNNER_TEMP/after.txt"
+
+  windows:
+    name: Build and test on Windows (informative)
+    runs-on: windows-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm test

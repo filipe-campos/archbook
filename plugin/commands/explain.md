@@ -1,7 +1,7 @@
 ---
 description: Rewrite one node's description in archbook/architecture.json in depth, based on its source code
 argument-hint: <node-id>
-allowed-tools: Read, Glob, Grep, Skill, Edit(./archbook/architecture.json), Bash(archbook validate *), Bash(archbook snapshot *), Bash(archbook --version *), Bash(npx archbook validate *), Bash(npx archbook snapshot *), Bash(npx archbook --version *)
+allowed-tools: Read, Glob, Grep, Skill, Edit(./archbook/architecture.json), Edit(./archbook/.drafts/**), Bash(archbook validate *), Bash(archbook snapshot *), Bash(archbook merge *), Bash(archbook format *), Bash(npx archbook validate *), Bash(npx archbook snapshot *), Bash(npx archbook merge *), Bash(npx archbook format *)
 ---
 
 # Explain one node in depth

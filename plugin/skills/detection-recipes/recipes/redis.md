@@ -1,3 +1,9 @@
+---
+detect:
+  - name: Redis
+    packages: [redis, ioredis]
+---
+
 # Redis
 
 Detects Redis (and compatible stores such as Valkey, KeyDB, Upstash and ElastiCache) and tells apart its four uses: cache, job queue, pub/sub and stream. Produces a `cache` node per instance plus `queue` nodes for queues and streams, with `cache`, `queue` or `event` edges depending on the use.

@@ -1,8 +1,8 @@
-import { watch, type FSWatcher } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { createServer, type Server, type ServerResponse } from "node:http";
 import path from "node:path";
 import { ARCHITECTURE_FILE, LIVE_RELOAD_META, LIVE_RELOAD_PATH } from "@archbook/schema";
+import { createLiveReloadHub } from "@archbook/schema/node";
 
 const CONTENT_TYPES: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -40,8 +40,9 @@ export function injectLiveReload(html: string): string {
 
 export async function startDevServer(options: DevServerOptions): Promise<DevServer> {
   const host = options.host ?? "localhost";
-  const clients = new Set<ServerResponse>();
   const viewerRoot = path.resolve(options.viewerDir);
+  const hub = createLiveReloadHub({ file: options.architectureFile });
+  if (options.onChange) hub.onChange(options.onChange);
 
   const server = createServer((req, res) => {
     void handle(req.url ?? "/", res).catch(() => {
@@ -69,14 +70,7 @@ export async function startDevServer(options: DevServerOptions): Promise<DevServ
     }
 
     if (pathname === `/${LIVE_RELOAD_PATH}`) {
-      res.writeHead(200, {
-        "content-type": "text/event-stream",
-        "cache-control": "no-store",
-        connection: "keep-alive",
-      });
-      res.write(": connected\n\n");
-      clients.add(res);
-      res.on("close", () => clients.delete(res));
+      hub.subscribe(res);
       return;
     }
 
@@ -98,40 +92,20 @@ export async function startDevServer(options: DevServerOptions): Promise<DevServ
     res.end(relative === "index.html" ? injectLiveReload(body.toString("utf8")) : body);
   }
 
-  const port = await listen(server, options.port, host, options.portAttempts ?? 10);
-
-  let timer: NodeJS.Timeout | undefined;
-  const fileName = path.basename(options.architectureFile);
-  const watchedDir = path.dirname(options.architectureFile);
-  let watcher: FSWatcher | undefined;
+  let port: number;
   try {
-    // Watch the directory: editors and atomic writes replace the file, which breaks file watches.
-    watcher = watch(watchedDir, (_event, changed) => {
-      if (changed && changed !== fileName) return;
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        for (const client of clients) client.write("event: change\ndata: {}\n\n");
-        options.onChange?.();
-      }, 80);
-    });
-  } catch {
-    watcher = undefined;
+    port = await listen(server, options.port, host, options.portAttempts ?? 10);
+  } catch (error) {
+    hub.close();
+    throw error;
   }
-
-  // Comments keep idle connections open through proxies.
-  const keepAlive = setInterval(() => {
-    for (const client of clients) client.write(": ping\n\n");
-  }, 25_000);
 
   return {
     url: `http://${host}:${port}/`,
     port,
     close: () =>
       new Promise<void>((resolve) => {
-        clearInterval(keepAlive);
-        clearTimeout(timer);
-        watcher?.close();
-        for (const client of clients) client.end();
+        hub.close();
         server.close(() => resolve());
         server.closeAllConnections();
       }),

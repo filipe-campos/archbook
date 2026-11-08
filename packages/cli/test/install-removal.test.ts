@@ -65,7 +65,7 @@ describe("init", () => {
     expect(existsSync(path.join(root, ".claude/agents/archbook-scanner.md"))).toBe(true);
     expect(existsSync(path.join(root, ".claude/skills/archbook-schema/SKILL.md"))).toBe(true);
     expect(readFileSync(path.join(root, ".gitignore"), "utf8")).toBe(
-      "node_modules\n.env\n\n# Archbook\narchbook/.history/\narchbook/dist/\n",
+      "node_modules\n.env\n\n# Archbook\narchbook/.history/\narchbook/.drafts/\narchbook/dist/\n",
     );
     expect(report.skipped).toEqual([]);
 
@@ -91,6 +91,17 @@ describe("init", () => {
     delete before["archbook/.manifest.json"];
     delete after["archbook/.manifest.json"];
     expect(after).toEqual(before);
+  });
+
+  it("appends only the .gitignore lines that are missing, and removal takes them back", async () => {
+    const gitignore = "node_modules\n\n# Archbook\narchbook/.history/\narchbook/dist/\n";
+    const root = tempProject({ ...USER_FILES, ".gitignore": gitignore });
+    const { paths } = await install(root);
+    expect(readFileSync(path.join(root, ".gitignore"), "utf8")).toBe(
+      `${gitignore}\n# Archbook\narchbook/.drafts/\n`,
+    );
+    await executeRemoval(paths, planRemoval(paths), { backupDir });
+    expect(readFileSync(path.join(root, ".gitignore"), "utf8")).toBe(gitignore);
   });
 
   it("never overwrites an existing file without asking", async () => {
@@ -194,7 +205,11 @@ describe("remove", () => {
     const root = tempProject(USER_FILES);
     const { paths } = await install(root);
     writeFileSync(paths.architecture, "{}\n");
-    await executeRemoval(paths, planRemoval(paths, { keepDocs: true }), { backupDir });
+    mkdirSync(paths.drafts);
+    writeFileSync(path.join(paths.drafts, "scanner.json"), "{}\n");
+    const plan = planRemoval(paths, { keepDocs: true });
+    expect(plan.items.map((item) => item.path)).toContain("archbook/.drafts");
+    await executeRemoval(paths, plan, { backupDir });
     expect(readdirSync(paths.dir)).toEqual(["architecture.json"]);
     expect(existsSync(path.join(root, ".claude/commands"))).toBe(false);
     expect(existsSync(path.join(root, ".claude/settings.json"))).toBe(true);

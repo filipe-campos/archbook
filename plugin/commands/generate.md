@@ -1,6 +1,6 @@
 ---
 description: Generate archbook/architecture.json from the codebase (components, connections, groups and replayable flows)
-allowed-tools: Read, Glob, Grep, Skill, Agent, Edit(./archbook/architecture.json), Bash(archbook validate *), Bash(archbook snapshot *), Bash(archbook --version *), Bash(npx archbook validate *), Bash(npx archbook snapshot *), Bash(npx archbook --version *)
+allowed-tools: Read, Glob, Grep, Skill, Agent, Edit(./archbook/architecture.json), Edit(./archbook/.drafts/**), Bash(archbook validate *), Bash(archbook snapshot *), Bash(archbook merge *), Bash(archbook format *), Bash(npx archbook validate *), Bash(npx archbook snapshot *), Bash(npx archbook merge *), Bash(npx archbook format *)
 ---
 
 # Generate the architecture document
@@ -9,7 +9,7 @@ Build `archbook/architecture.json` for the project in the current directory: its
 
 ## Ground rules
 
-- Only edit `archbook/architecture.json`. Never touch project source code or any other file.
+- Only edit `archbook/architecture.json` and the drafts in `archbook/.drafts/`. Never touch project source code or any other file.
 - Never cite a file nobody opened or listed. `lines` only for ranges someone read.
 - Prefer fewer, well-explained nodes over many shallow ones; respect `detailLevel`.
 - Stable ids: reuse existing ids for the same element; new ids are kebab-case and descriptive (`orders-api`, `web-app-to-orders-api`).
@@ -20,13 +20,12 @@ Build `archbook/architecture.json` for the project in the current directory: its
 ## 1. Inputs
 
 1. Read `archbook/config.json`. If it is missing, tell the user to run `npx archbook init` and stop.
-2. Read `archbook/architecture.json` if it exists. Its ids are the ones to reuse. Its `owner`, `links` and `position` values are user-curated: carry them over for every id you keep.
-3. Run `npx archbook --version`. `generatedBy` is `archbook@<version> + claude-code`.
-4. Prepare the **config brief** you pass to every subagent: project name and description, `audience`, `language`, `detailLevel`, `ignore`, `externalContext`, `detected`.
+2. Read `archbook/architecture.json` if it exists. Its ids are the ones to reuse. Its `owner`, `links` and `position` values are user-curated; the merge in step 5 carries them over for every id you keep.
+3. Prepare the **config brief** you pass to every subagent: project name and description, `audience`, `language`, `detailLevel`, `ignore`, `externalContext`, `detected`.
 
 ## 2. Snapshot
 
-Run `npx archbook snapshot --op generate` before anything writes. If it fails, stop and report the error. If it warns about uncommitted changes, continue (the snapshot preserves them) and mention it in the report. It ends with a `Time: <ISO 8601 UTC>` line: use that value for `generatedAt`.
+Run `npx archbook snapshot --op generate` before anything writes. If it fails, stop and report the error. If it warns about uncommitted changes, continue (the snapshot preserves them) and mention it in the report. It ends with three lines: `Time: <ISO 8601 UTC>`, `Schema: <URL>` and `Generated-By: <value>`. They give `generatedAt`, `$schema` and `generatedBy`.
 
 ## 3. Scan
 
@@ -38,16 +37,14 @@ Flows to trace: every entry of `flows` in the config, plus every flow of the exi
 
 Launch one `archbook:flow-tracer` per flow, all in a single message so they run in parallel. Each prompt: the flow description verbatim, its flow id, the config brief, the draft nodes and edges (ids, kinds, names, groups, from/to, labels, source paths) and the existing flow object when there is one. Each returns `{ flow, newEdges, newNodes, notes }`.
 
-## 5. Assemble and write
+## 5. Merge the drafts
 
-Merge in memory:
+You decide what goes into the document; the CLI does the merging. Write each draft with the Write tool under `archbook/.drafts/`, then run `npx archbook merge --draft <file>`. The command validates the result, writes `archbook/architecture.json` with the canonical key order and spacing, deletes the draft and prints a JSON report: `added`, `removed`, `reused`, `renamed`, `replaced`, `preserved` and `validation`. When `written` is `false`, the result failed the schema and nothing changed: fix the draft and run the command again.
 
-- Add each `newEdges` entry unless an edge with the same `from`, `to` and `kind` already exists; in that case point the tracer's steps at the existing id. Skip `newNodes` entries that duplicate an existing component. Resolve id clashes between tracers by renaming and updating their steps.
-- Leave out a flow whose tracer could not find it in the code, and say so in the report.
-- Drop an element of the previous file only when the scanner gave evidence that it is gone.
-- Check every reference: edge `from`/`to` are nodes, node `group` and group `parent` are groups, step `edge` is an edge.
-
-Write `archbook/architecture.json` in one go, pretty-printed with 2-space indentation, with top-level keys in this order: `$schema` (`https://unpkg.com/archbook@0.1/schema/architecture.schema.json`), `version` (`"0.1"`), `project` (`name`, `description`, `repoUrl` when set, `defaultBranch`, all from the config), `audience`, `language`, `groups`, `nodes`, `edges`, `flows`, `generatedAt`, `generatedBy`. Omit empty arrays, empty optional strings and `false` booleans. Order nodes from the outside in: actors, apps, services, workers, queues, data stores, external systems.
+1. **Structure.** Write `archbook/.drafts/structure.json` with the scanner's `groups`, `nodes` and `edges`, plus the document fields: `$schema` and `generatedBy` from the snapshot lines, `version` (`"0.1"`), `project` (`name`, `description`, `repoUrl` when set, `defaultBranch`, all from the config), `audience`, `language` and `generatedAt`. Keep an element of the previous file in the draft unless the scanner gave evidence that it is gone. Order nodes from the outside in: actors, apps, services, workers, queues, data stores, external systems. Run `npx archbook merge --draft archbook/.drafts/structure.json --replace-structure`. The draft's groups, nodes and edges replace the document's, and the previous `owner`, `links` and `position` carry over for every id you kept.
+2. **Flows.** For each tracer that found its flow, write its output to `archbook/.drafts/flow-<flow id>.json` and run `npx archbook merge --draft archbook/.drafts/flow-<flow id>.json`, one draft at a time. Before writing, remove `newNodes` entries that are an existing component under another id, and point their `newEdges` at that component's id. The merge adds nodes whose id is new, reuses an existing edge with the same `from`, `to` and `kind`, gives a clashing edge id a numeric suffix, points the steps at the result, and replaces the flow with the same id.
+3. Leave out a flow whose tracer could not find it in the code. If the previous file had it, remove it from `flows` with Edit, and say so in the report.
+4. Keep the reports: `added` and `removed` feed the final report, and `renamed` tells the writer which ids changed.
 
 ## 6. Write the prose
 

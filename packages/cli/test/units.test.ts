@@ -1,13 +1,19 @@
 import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { createArchbookShim, toStreamMessage } from "../src/io/claude.js";
+import {
+  createArchbookShim,
+  describeToolUse,
+  shellQuote,
+  toStreamMessage,
+} from "../src/io/claude.js";
 import { detectStack, projectDefaults } from "../src/core/detect.js";
+import { loadPackageRules, recipesDir } from "../src/core/recipes.js";
 import { normalizeRemoteUrl } from "../src/io/git.js";
 import { removeAppendedText, textToAppend } from "../src/core/textBlock.js";
 import { relativeTime, table } from "../src/ui/format.js";
-import { tempProject } from "./helpers.js";
+import { repoRoot, tempProject } from "./helpers.js";
 
 describe("textToAppend / removeAppendedText", () => {
   it.each([
@@ -61,15 +67,16 @@ describe("detectStack", () => {
       "node_modules/kafkajs/package.json": "{}",
       "vendor/go.mod": "",
     });
-    const names = detectStack(root, ["vendor"]).map((signal) => signal.name);
+    const rules = loadPackageRules(recipesDir(path.join(repoRoot, "plugin")));
+    const names = detectStack(root, ["vendor"], rules).map((signal) => signal.name);
     expect(names).toEqual([
       "Node.js",
       "Docker Compose",
       "Docker",
       "Terraform",
       "GitHub Actions",
-      "Express",
       "BullMQ",
+      "Express",
     ]);
     expect(projectDefaults(root)).toEqual({ name: "shop", description: "Shop" });
   });
@@ -101,6 +108,25 @@ describe("ui helpers", () => {
 });
 
 describe("createArchbookShim", () => {
+  it("writes a sh script and a .cmd that run this Node with the entry", () => {
+    const shim = createArchbookShim("/opt/archbook/dist/index.js");
+    try {
+      const node = process.execPath;
+      expect(readFileSync(path.join(shim.dir, "archbook"), "utf8")).toBe(
+        `#!/bin/sh\nexec ${shellQuote(node)} '/opt/archbook/dist/index.js' "$@"\n`,
+      );
+      expect(readFileSync(path.join(shim.dir, "archbook.cmd"), "utf8")).toBe(
+        `@"${node}" "/opt/archbook/dist/index.js" %*\r\n`,
+      );
+      if (process.platform !== "win32") {
+        expect(statSync(path.join(shim.dir, "archbook")).mode & 0o111).toBe(0o111);
+      }
+    } finally {
+      shim.dispose();
+    }
+    expect(() => statSync(shim.dir)).toThrow();
+  });
+
   it.skipIf(process.platform === "win32")(
     "runs the CLI entry even when its path has spaces, quotes and $",
     () => {
@@ -145,5 +171,34 @@ describe("toStreamMessage", () => {
     { type: "unknown" },
   ])("drops %j", (value) => {
     expect(toStreamMessage(value)).toBeUndefined();
+  });
+});
+
+describe("describeToolUse", () => {
+  it.each<[string, Record<string, unknown> | undefined, string]>([
+    ["Read", { file_path: "src/a.ts" }, "Reading src/a.ts"],
+    ["Glob", { pattern: "**/*.ts" }, "Listing **/*.ts"],
+    ["Grep", { pattern: "express\\(" }, "Searching for express\\("],
+    [
+      "Bash",
+      { command: "archbook validate --json\necho done" },
+      "Running archbook validate --json",
+    ],
+    ["Edit", { file_path: "archbook/architecture.json" }, "Writing archbook/architecture.json"],
+    ["Write", { file_path: "a.json" }, "Writing a.json"],
+    ["MultiEdit", { file_path: "b.json" }, "Writing b.json"],
+    [
+      "Agent",
+      { subagent_type: "archbook-scanner", description: "Scan services" },
+      "Starting archbook-scanner: Scan services",
+    ],
+    ["Task", { description: "Scan" }, "Starting subagent: Scan"],
+    ["Skill", { skill: "archbook-schema" }, "Loading skill archbook-schema"],
+    ["Skill", { name: "archbook-schema" }, "Loading skill archbook-schema"],
+    ["Read", { file_path: 42 }, "Reading "],
+    ["Read", undefined, "Reading "],
+    ["WebFetch", { url: "https://example.com" }, "WebFetch"],
+  ])("describes %s %j", (name, input, expected) => {
+    expect(describeToolUse(name, input)).toBe(expected);
   });
 });

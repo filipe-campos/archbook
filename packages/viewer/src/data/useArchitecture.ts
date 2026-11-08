@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { ARCHITECTURE_FILE, LIVE_RELOAD_META, validateArchitectureText } from "@archbook/schema";
+import {
+  ARCHITECTURE_FILE,
+  LIVE_RELOAD_EVENT,
+  LIVE_RELOAD_META,
+  validateArchitectureText,
+} from "@archbook/schema";
 import {
   createRequestSequence,
   nextLoadState,
@@ -47,7 +52,7 @@ export function useArchitecture(): LoadState {
     load();
     const url = liveReloadUrl();
     const source = url ? new EventSource(url) : undefined;
-    source?.addEventListener("change", load);
+    source?.addEventListener(LIVE_RELOAD_EVENT, load);
     return () => {
       active = false;
       source?.close();

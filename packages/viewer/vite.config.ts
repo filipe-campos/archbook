@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
+import { contentSecurityPolicy } from "./csp.ts";
 import { archbookDevData } from "./dev-server.ts";
 
 const exampleFile = fileURLToPath(
@@ -10,7 +11,11 @@ const exampleFile = fileURLToPath(
 export default defineConfig({
   // Relative asset URLs, so the build works from any sub-path (GitHub Pages, file servers).
   base: "./",
-  plugins: [react(), archbookDevData(process.env.ARCHBOOK_FILE ?? exampleFile)],
+  plugins: [
+    react(),
+    contentSecurityPolicy(),
+    archbookDevData(process.env.ARCHBOOK_FILE ?? exampleFile),
+  ],
   resolve: {
     alias: [
       {
@@ -21,6 +26,8 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
-    chunkSizeWarningLimit: 2000,
+    // The only chunk above Vite's 500 kB default is ELK's single-thread fallback, which loads
+    // only where the layout worker cannot start.
+    chunkSizeWarningLimit: 1464,
   },
 });

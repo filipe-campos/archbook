@@ -1,12 +1,14 @@
 import { readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { countLines } from "./paths.js";
 import {
-  countLines,
   validateArchitecture as validateDocument,
   type SourceEntry,
   type SourceFileIndex,
   type ValidationResult,
 } from "./validate.js";
+
+export * from "./live-reload.js";
 
 /** Source file index backed by the file system, with per-path caching. */
 export function createFileSystemIndex(projectRoot: string): SourceFileIndex {

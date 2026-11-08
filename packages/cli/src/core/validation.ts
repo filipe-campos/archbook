@@ -1,6 +1,7 @@
 import {
   formatIssuePath,
   ISSUE_CODES,
+  validateArchitecture,
   validateArchitectureText,
   type ValidationIssue,
   type ValidationResult,
@@ -36,6 +37,18 @@ export function validateProject(paths: ProjectPaths, file = paths.architecture):
   }
   const result = validateArchitectureText(text, { sourceFiles: createFileSystemIndex(paths.root) });
   return { ...result, file: display, missing: false };
+}
+
+/** Validates a document that is not on disk yet, as if it were `file`. */
+export function validateDocument(
+  paths: ProjectPaths,
+  document: unknown,
+  file = paths.architecture,
+): ProjectValidation {
+  const result = validateArchitecture(document, {
+    sourceFiles: createFileSystemIndex(paths.root),
+  });
+  return { ...result, file: relativePath(paths.root, file), missing: false };
 }
 
 const toJsonIssue = (issue: ValidationIssue) => ({

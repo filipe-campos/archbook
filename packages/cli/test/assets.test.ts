@@ -10,7 +10,7 @@ import {
   projectCommand,
   rewriteForProject,
 } from "../src/core/assets.js";
-import { ALLOWED_TOOLS, ARCHBOOK_BASH_RULES, ARCHITECTURE_EDIT_RULE } from "../src/io/claude.js";
+import { ALLOWED_TOOLS, ARCHBOOK_BASH_RULES, ARCHBOOK_EDIT_RULES } from "../src/io/claude.js";
 import { repoRoot } from "./helpers.js";
 
 const pluginRoot = path.join(repoRoot, "plugin");
@@ -88,10 +88,10 @@ describe("permissions", () => {
     expect(
       rules.filter((rule) => rule.startsWith("Edit")),
       where,
-    ).toEqual([ARCHITECTURE_EDIT_RULE]);
+    ).toEqual(ARCHBOOK_EDIT_RULES);
   }
 
-  it("lets plugin commands run only the safe archbook subcommands and edit only architecture.json", () => {
+  it("lets plugin commands run only the safe archbook subcommands and edit only architecture.json and drafts", () => {
     const commands = assets.filter((a) => a.kind === "command" && a.target.endsWith(".md"));
     expect(commands).toHaveLength(4);
     for (const asset of commands) {
@@ -104,8 +104,13 @@ describe("permissions", () => {
 
   it("gives the headless session the same archbook rules", () => {
     checkRules(ALLOWED_TOOLS, "ALLOWED_TOOLS");
-    expect(ARCHITECTURE_EDIT_RULE).toBe("Edit(./archbook/architecture.json)");
-    expect(ARCHBOOK_BASH_RULES).toContain("Bash(archbook --version *)");
+    expect(ARCHBOOK_EDIT_RULES).toEqual([
+      "Edit(./archbook/architecture.json)",
+      "Edit(./archbook/.drafts/**)",
+    ]);
+    expect(ARCHBOOK_BASH_RULES).toEqual(
+      expect.arrayContaining(["Bash(archbook merge *)", "Bash(npx archbook format *)"]),
+    );
   });
 });
 

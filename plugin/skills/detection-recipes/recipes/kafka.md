@@ -1,3 +1,9 @@
+---
+detect:
+  - name: Kafka
+    packages: [kafkajs, "@confluentinc/kafka-javascript", node-rdkafka]
+---
+
 # Kafka
 
 Detects Kafka (and Kafka-compatible brokers such as Redpanda) producers, consumers and topics. Produces one `queue` node per topic that matters and `event` edges from producers to topics and from topics to consumers.

@@ -1,3 +1,9 @@
+---
+detect:
+  - name: AWS SQS/SNS
+    packages: ["@aws-sdk/client-sqs", "@aws-sdk/client-sns", sqs-consumer]
+---
+
 # AWS SQS and SNS
 
 Detects Amazon SQS queues and SNS topics, their producers, subscriptions and consumers, from SDK calls and infrastructure as code. Produces `queue` nodes for queues and topics, `worker` nodes for consumers, and `queue` and `event` edges. EventBridge follows the SNS rules.

@@ -5,8 +5,8 @@ import { UserError } from "../errors.js";
 import { readTextIfExists, sha256, writeFileAtomic, writeJson } from "../io/fs.js";
 import type { ProjectPaths } from "./project.js";
 
-/** Operations the Claude Code commands snapshot before; `undo` snapshots internally too. */
-export const SNAPSHOT_OPERATIONS = ["generate", "sync", "add-flow", "explain"] as const;
+/** Operations snapshotted before they change the file; `undo` snapshots internally too. */
+export const SNAPSHOT_OPERATIONS = ["generate", "sync", "add-flow", "explain", "format"] as const;
 
 /** Operations that rewrite the whole document, so uncommitted edits are worth a warning. */
 export const WARN_UNCOMMITTED_OPERATIONS: readonly string[] = ["generate", "sync"];

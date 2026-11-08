@@ -1,3 +1,9 @@
+---
+detect:
+  - name: Stripe
+    packages: [stripe]
+---
+
 # Stripe and inbound webhooks
 
 Detects Stripe API calls and Stripe webhooks, plus inbound webhooks from any other provider (GitHub, Shopify, Clerk, Twilio, Slack). Produces `external` provider nodes, outbound `http` edges to them and inbound `http` edges from them to the node that hosts the webhook route.

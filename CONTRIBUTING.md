@@ -13,9 +13,10 @@ Recipes live in [`plugin/skills/detection-recipes/recipes/`](plugin/skills/detec
    - **Sources to cite**: which lines prove each node and edge.
    - **Flow hints**: which steps are `async` or `reverse`, where payloads come from, typical `durationMs`.
    - **Pitfalls**: false positives and modelling mistakes.
-2. **Add it to the index** table in [`plugin/skills/detection-recipes/SKILL.md`](plugin/skills/detection-recipes/SKILL.md), and mention the technology in the skill's `description` if it is common.
-3. **Check the patterns.** Run each Grep pattern against a real project that uses the technology (ripgrep: `rg '<pattern>' <project>`). Every rule should lead to a node, an edge, a source or a flow step, or prevent a wrong one.
-4. **Try it end to end.** In a sample project that uses the technology:
+2. **Declare its packages.** List the npm packages that reveal the technology in the `detect` frontmatter at the top of the recipe, one entry per technology the recipe covers. `archbook init` reads these lists to report what it detected and which recipe covers it, so the same file teaches both the agents and the CLI. Leave the frontmatter out when no npm package reveals the technology (as in `docker-compose.md`). A test checks the frontmatter of every recipe.
+3. **Add it to the index** table in [`plugin/skills/detection-recipes/SKILL.md`](plugin/skills/detection-recipes/SKILL.md), and mention the technology in the skill's `description` if it is common.
+4. **Check the patterns.** Run each Grep pattern against a real project that uses the technology (ripgrep: `rg '<pattern>' <project>`). Every rule should lead to a node, an edge, a source or a flow step, or prevent a wrong one.
+5. **Try it end to end.** In a sample project that uses the technology:
 
    ```sh
    pnpm build
@@ -26,7 +27,7 @@ Recipes live in [`plugin/skills/detection-recipes/recipes/`](plugin/skills/detec
 
    `init` copies the recipes from your checkout into the sample project's `.claude/` folder. To iterate on a recipe without reinstalling, edit the copy in `.claude/skills/archbook-detection-recipes/recipes/` and port the change back.
 
-5. **Open a pull request** with the recipe and, ideally, a short note on the project you tested it with and the nodes and edges it produced.
+6. **Open a pull request** with the recipe and, ideally, a short note on the project you tested it with and the nodes and edges it produced.
 
 Good recipes are concrete. Compare [`bullmq.md`](plugin/skills/detection-recipes/recipes/bullmq.md) or [`stripe-webhooks.md`](plugin/skills/detection-recipes/recipes/stripe-webhooks.md) with your draft.
 
@@ -56,6 +57,7 @@ pnpm dev:example
 | `.claude-plugin/marketplace.json` | Lets people install the plugin from this repository.                                                                                                   |
 | `examples/shop-checkout`          | A complete example with stub sources, used by `pnpm dev:example` and the tests.                                                                        |
 | `docs/`                           | [`schema.md`](docs/schema.md) and [`decisions.md`](docs/decisions.md).                                                                                 |
+| `e2e/`                            | Playwright tests of the built viewer and of `archbook dev`, run against the example.                                                                   |
 
 ### CLI layers
 
@@ -77,7 +79,21 @@ ESLint enforces these rules:
 - `ui/` does not import `@clack/prompts`, `commander`, `io/` or `commands/`, and imports only types from `core/`.
 - A command does not import another command; shared code lives in `commands/context.ts`.
 - `commands/` and `core/` do not use `console`, and `commands/` does not import `@clack/prompts`: commands print through the `Output` in their `CommandContext` (`io/output.ts`), and tests pass `memoryOutput()`.
-- The main entry of `@archbook/schema` stays browser-safe: only `src/node.ts` may import Node built-ins.
+- The main entry of `@archbook/schema` stays browser-safe: only `src/node.ts` (and `src/live-reload.ts`, which it re-exports) may import Node built-ins.
+
+### Viewer layers
+
+```text
+packages/viewer/src/
+  Viewer.tsx   # composes hooks and components
+  components/  # React components, contexts and the kind-to-icon map
+  hooks/       # playback, selection, shortcuts, flow route, canvas focus, reduced motion
+  data/        # loading, hash route, theme
+  graph/       # pure: ELK layout, canvas elements, highlight, flow usage
+  lib/         # pure helpers
+```
+
+ESLint keeps `graph/` and `lib/` free of `react`, `react-dom` and `lucide-react`; `@xyflow/react` is allowed there only with `import type`.
 
 ### Checks
 
@@ -88,8 +104,11 @@ pnpm lint
 pnpm format:check   # pnpm format fixes formatting
 pnpm build
 pnpm typecheck
-pnpm test
+pnpm test:coverage  # pnpm test without the coverage limits
+pnpm test:e2e       # after pnpm build; once: pnpm exec playwright install chromium
 ```
+
+Each package's `vitest.config.ts` sets coverage limits at the current coverage; raise them when you add tests, never lower them to make a change pass. Viewer component tests start with `// @vitest-environment happy-dom`; anything that needs the canvas belongs in the Playwright tests in `e2e/`, which build the example with the CLI and check that the page logs no errors and breaks no Content Security Policy rule.
 
 To check the plugin manifests and frontmatter with Claude Code itself: `claude plugin validate plugin` and `claude plugin validate .`.
 

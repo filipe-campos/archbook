@@ -4,16 +4,21 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createInterface } from "node:readline";
 
-/** The only Archbook subcommands the plugin runs; none of them deletes or overwrites user files. */
-export const ARCHBOOK_SUBCOMMANDS = ["validate", "snapshot", "--version"] as const;
+/**
+ * The only Archbook subcommands the plugin runs. None deletes user files, and the ones that write
+ * touch only architecture.json and its drafts.
+ */
+export const ARCHBOOK_SUBCOMMANDS = ["validate", "snapshot", "merge", "format"] as const;
 
-/** A trailing ` *` also matches the bare command, so `archbook --version` is covered. */
+/** A trailing ` *` also matches the bare command. */
 export const ARCHBOOK_BASH_RULES = ["archbook", "npx archbook"].flatMap((bin) =>
   ARCHBOOK_SUBCOMMANDS.map((sub) => `Bash(${bin} ${sub} *)`),
 );
 
 /** Edit rules also cover the Write tool. */
 export const ARCHITECTURE_EDIT_RULE = "Edit(./archbook/architecture.json)";
+export const DRAFTS_EDIT_RULE = "Edit(./archbook/.drafts/**)";
+export const ARCHBOOK_EDIT_RULES = [ARCHITECTURE_EDIT_RULE, DRAFTS_EDIT_RULE];
 
 /** Tools a headless generation may use. */
 export const ALLOWED_TOOLS = [
@@ -21,7 +26,7 @@ export const ALLOWED_TOOLS = [
   "Glob",
   "Grep",
   "Skill",
-  ARCHITECTURE_EDIT_RULE,
+  ...ARCHBOOK_EDIT_RULES,
   ...ARCHBOOK_BASH_RULES,
   "Bash(git diff *)",
   "Bash(git log *)",
@@ -35,7 +40,7 @@ export const HEADLESS_SYSTEM_PROMPT = [
   "You are running non-interactively, started by the `archbook generate` command.",
   "No user can answer questions: make reasonable decisions, state your assumptions in the final report, and never wait for confirmation.",
   "The Archbook CLI is on PATH as `archbook`. Wherever instructions say `npx archbook <command>`, run `archbook <command>` instead.",
-  "Only edit archbook/architecture.json.",
+  "Only edit archbook/architecture.json and the drafts in archbook/.drafts/.",
 ].join(" ");
 
 export const INSTALL_HINT = "npm install -g @anthropic-ai/claude-code";

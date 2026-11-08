@@ -8,6 +8,7 @@ export interface ProjectPaths {
   architecture: string;
   config: string;
   history: string;
+  drafts: string;
   manifest: string;
   dist: string;
 }
@@ -22,6 +23,7 @@ export function projectPaths(root: string): ProjectPaths {
     architecture: path.join(dir, "architecture.json"),
     config: path.join(dir, "config.json"),
     history: path.join(dir, ".history"),
+    drafts: path.join(dir, ".drafts"),
     manifest: path.join(dir, ".manifest.json"),
     dist: path.join(dir, "dist"),
   };

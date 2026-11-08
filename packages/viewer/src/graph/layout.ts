@@ -1,4 +1,9 @@
-import type { Architecture, ArchGroup } from "@archbook/schema";
+import {
+  indexArchitecture,
+  type ArchEdge,
+  type Architecture,
+  type ArchGroup,
+} from "@archbook/schema";
 import type { ElkExtendedEdge, ElkNode } from "elkjs/lib/elk-api.js";
 
 export const NODE_WIDTH = 240;
@@ -37,15 +42,7 @@ const GROUP_OPTIONS: Record<string, string> = {
 
 /** Groups ordered parents first, skipping groups that contain no nodes at any depth. */
 export function visibleGroups(arch: Architecture): ArchGroup[] {
-  const byId = new Map(arch.groups.map((group) => [group.id, group]));
-  const used = new Set<string>();
-  for (const node of arch.nodes) {
-    const seen = new Set<string>();
-    for (let id = node.group; id && byId.has(id) && !seen.has(id); id = byId.get(id)?.parent) {
-      seen.add(id);
-      used.add(id);
-    }
-  }
+  const { groups: byId, groupsWithNodes } = indexArchitecture(arch);
   const depth = (group: ArchGroup): number => {
     let d = 0;
     const seen = new Set<string>();
@@ -59,7 +56,17 @@ export function visibleGroups(arch: Architecture): ArchGroup[] {
     }
     return d;
   };
-  return arch.groups.filter((group) => used.has(group.id)).sort((a, b) => depth(a) - depth(b));
+  return arch.groups
+    .filter((group) => groupsWithNodes.has(group.id))
+    .sort((a, b) => depth(a) - depth(b));
+}
+
+/** Edges the canvas can draw: both endpoints exist and they differ. */
+export function drawableEdges(arch: Architecture): ArchEdge[] {
+  const nodeIds = new Set(arch.nodes.map((node) => node.id));
+  return arch.edges.filter(
+    (edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to) && edge.from !== edge.to,
+  );
 }
 
 export function toElkGraph(arch: Architecture): ElkNode {
@@ -85,31 +92,99 @@ export function toElkGraph(arch: Architecture): ElkNode {
     containerOf(node.group).children!.push({ id: node.id, width: NODE_WIDTH, height: NODE_HEIGHT });
   }
 
-  const nodeIds = new Set(arch.nodes.map((node) => node.id));
-  root.edges = arch.edges
-    .filter((edge) => nodeIds.has(edge.from) && nodeIds.has(edge.to) && edge.from !== edge.to)
-    .map((edge): ElkExtendedEdge => ({
-      id: edge.id,
-      sources: [edge.from],
-      targets: [edge.to],
-      // Reserve room for the label between layers; the canvas draws it itself.
-      labels: edge.label
-        ? [
-            {
-              id: `${edge.id}:label`,
-              text: edge.label,
-              width: edge.label.length * 7 + 20,
-              height: 22,
-            },
-          ]
-        : [],
-    }));
+  root.edges = drawableEdges(arch).map((edge): ElkExtendedEdge => ({
+    id: edge.id,
+    sources: [edge.from],
+    targets: [edge.to],
+    // Reserve room for the label between layers; the canvas draws it itself.
+    labels: edge.label
+      ? [
+          {
+            id: `${edge.id}:label`,
+            text: edge.label,
+            width: edge.label.length * 7 + 20,
+            height: 22,
+          },
+        ]
+      : [],
+  }));
   return root;
 }
 
-export async function layoutArchitecture(arch: Architecture): Promise<Layout> {
+export interface LayoutEngine {
+  layout(graph: ElkNode): Promise<ElkNode>;
+}
+
+export type WorkerConstructor = new (url: string) => Worker;
+
+/** Marks a worker that could not start, as opposed to a graph ELK rejected. */
+class WorkerUnavailable extends Error {}
+
+async function inlineEngine(): Promise<LayoutEngine> {
   const { default: ELK } = await import("elkjs/lib/elk.bundled.js");
-  const result = await new ELK().layout(toElkGraph(arch));
+  return new ELK();
+}
+
+async function workerEngine(WorkerImpl: WorkerConstructor): Promise<LayoutEngine> {
+  const [{ default: ELK }, { default: workerUrl }] = await Promise.all([
+    import("elkjs/lib/elk-api.js"),
+    import("elkjs/lib/elk-worker.min.js?url"),
+  ]);
+  let failed: Promise<never> = new Promise(() => {});
+  const elk = new ELK({
+    workerUrl,
+    workerFactory: (url) => {
+      const worker = new WorkerImpl(url!);
+      // elkjs never settles a layout when its worker fails to load (a 404, a CSP), so race it.
+      failed = new Promise<never>((_, reject) => {
+        worker.addEventListener(
+          "error",
+          (event) => reject(new WorkerUnavailable((event as ErrorEvent).message || "error")),
+          { once: true },
+        );
+      });
+      failed.catch(() => {});
+      return worker;
+    },
+  });
+  return { layout: (graph) => Promise.race([elk.layout(graph), failed]) };
+}
+
+/**
+ * Runs ELK in a Web Worker so large graphs do not freeze the page, and on the calling thread
+ * when `Worker` is missing (tests, restricted environments) or the worker fails to start.
+ */
+export function createLayoutEngine(
+  WorkerImpl: WorkerConstructor | undefined = globalThis.Worker,
+): LayoutEngine {
+  let worker: Promise<LayoutEngine | undefined> = WorkerImpl
+    ? workerEngine(WorkerImpl).catch(() => undefined)
+    : Promise.resolve(undefined);
+  let inline: Promise<LayoutEngine> | undefined;
+  return {
+    async layout(graph) {
+      const engine = await worker;
+      if (engine) {
+        try {
+          return await engine.layout(graph);
+        } catch (error) {
+          if (!(error instanceof WorkerUnavailable)) throw error;
+          worker = Promise.resolve(undefined);
+        }
+      }
+      inline ??= inlineEngine();
+      return (await inline).layout(graph);
+    },
+  };
+}
+
+let defaultEngine: LayoutEngine | undefined;
+
+export async function layoutArchitecture(
+  arch: Architecture,
+  engine: LayoutEngine = (defaultEngine ??= createLayoutEngine()),
+): Promise<Layout> {
+  const result = await engine.layout(toElkGraph(arch));
   const layout: Layout = new Map();
   const collect = (node: ElkNode) => {
     for (const child of node.children ?? []) {

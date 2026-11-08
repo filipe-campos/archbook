@@ -2,8 +2,9 @@ import { memo, type CSSProperties } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { cx } from "../../lib/cx";
 import type { ArchCanvasNode, GroupCanvasNode } from "../../graph/elements";
-import { emphasisOf, useHighlight } from "../../graph/highlight";
-import { NODE_KIND_STYLES } from "../../graph/kinds";
+import { emphasisOf } from "../../graph/highlight";
+import { NODE_KIND_STYLES } from "../kinds";
+import { useHighlight } from "./context";
 import styles from "./Canvas.module.css";
 
 const MAX_TECH_CHIPS = 3;

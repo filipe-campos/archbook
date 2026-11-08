@@ -1,15 +1,18 @@
 import type { CSSProperties } from "react";
 import { ArrowLeft, ArrowRight, Clock, Play, Undo2, Zap } from "lucide-react";
-import type {
-  ArchEdge,
-  ArchFlow,
-  ArchNode,
-  Architecture,
-  NodeKind,
-  ValidationIssue,
+import {
+  formatIssuePath,
+  stepEndpoints,
+  type ArchEdge,
+  type ArchFlow,
+  type ArchNode,
+  type Architecture,
+  type ArchitectureIndex,
+  type NodeKind,
+  type ValidationIssue,
 } from "@archbook/schema";
-import { formatIssuePath } from "@archbook/schema";
-import { EDGE_KIND_STYLES, NODE_KIND_STYLES } from "../../graph/kinds";
+import { flowUsages, type FlowUsage } from "../../graph/usage";
+import { EDGE_KIND_STYLES, NODE_KIND_STYLES } from "../kinds";
 import { formatDuration } from "../../lib/playback";
 import { JsonView } from "./JsonView";
 import { Markdown } from "./Markdown";
@@ -19,20 +22,6 @@ import styles from "./Panel.module.css";
 export interface PanelActions {
   select: (id: string) => void;
   openFlow: (flowId: string, step?: number) => void;
-}
-
-interface FlowUsage {
-  flow: ArchFlow;
-  steps: number[];
-}
-
-function flowsUsing(arch: Architecture, edgeIds: ReadonlySet<string>): FlowUsage[] {
-  return arch.flows
-    .map((flow) => ({
-      flow,
-      steps: flow.steps.flatMap((step, index) => (edgeIds.has(step.edge) ? [index + 1] : [])),
-    }))
-    .filter((usage) => usage.steps.length > 0);
 }
 
 function FlowUsageList({ usages, actions }: { usages: FlowUsage[]; actions: PanelActions }) {
@@ -163,20 +152,24 @@ function Stat({ value, label }: { value: number; label: string }) {
 
 export function NodePanel({
   architecture,
+  index,
   node,
   actions,
 }: {
   architecture: Architecture;
+  index: ArchitectureIndex;
   node: ArchNode;
   actions: PanelActions;
 }) {
   const kind = NODE_KIND_STYLES[node.kind];
   const Icon = kind.icon;
-  const byId = new Map(architecture.nodes.map((n) => [n.id, n]));
-  const outgoing = architecture.edges.filter((edge) => edge.from === node.id);
-  const incoming = architecture.edges.filter((edge) => edge.to === node.id);
-  const group = architecture.groups.find((g) => g.id === node.group);
-  const usages = flowsUsing(architecture, new Set([...outgoing, ...incoming].map((e) => e.id)));
+  const outgoing = index.outgoing.get(node.id) ?? [];
+  const incoming = index.incoming.get(node.id) ?? [];
+  const group = node.group === undefined ? undefined : index.groups.get(node.group);
+  const usages = flowUsages(
+    index,
+    [...outgoing, ...incoming].map((e) => e.id),
+  );
 
   return (
     <>
@@ -225,7 +218,7 @@ export function NodePanel({
               <ConnectionItem
                 key={edge.id}
                 edge={edge}
-                other={byId.get(edge.to)}
+                other={index.nodes.get(edge.to)}
                 direction="out"
                 actions={actions}
               />
@@ -234,7 +227,7 @@ export function NodePanel({
               <ConnectionItem
                 key={edge.id}
                 edge={edge}
-                other={byId.get(edge.from)}
+                other={index.nodes.get(edge.from)}
                 direction="in"
                 actions={actions}
               />
@@ -274,16 +267,18 @@ function ConnectionItem({
 
 export function EdgePanel({
   architecture,
+  index,
   edge,
   actions,
 }: {
   architecture: Architecture;
+  index: ArchitectureIndex;
   edge: ArchEdge;
   actions: PanelActions;
 }) {
-  const from = architecture.nodes.find((node) => node.id === edge.from);
-  const to = architecture.nodes.find((node) => node.id === edge.to);
-  const usages = flowsUsing(architecture, new Set([edge.id]));
+  const from = index.nodes.get(edge.from);
+  const to = index.nodes.get(edge.to);
+  const usages = flowUsages(index, [edge.id]);
   return (
     <>
       <div className={styles.eyebrow}>{EDGE_KIND_STYLES[edge.kind].label} connection</div>
@@ -303,27 +298,26 @@ export function EdgePanel({
 }
 
 export function StepPanel({
-  architecture,
-  flow,
   index,
+  flow,
+  stepIndex,
   actions,
 }: {
-  architecture: Architecture;
+  index: ArchitectureIndex;
   flow: ArchFlow;
-  index: number;
+  stepIndex: number;
   actions: PanelActions;
 }) {
-  const step = flow.steps[index]!;
-  const edge = architecture.edges.find((candidate) => candidate.id === step.edge);
-  const fromId = edge && (step.reverse ? edge.to : edge.from);
-  const toId = edge && (step.reverse ? edge.from : edge.to);
-  const from = architecture.nodes.find((node) => node.id === fromId);
-  const to = architecture.nodes.find((node) => node.id === toId);
+  const step = flow.steps[stepIndex]!;
+  const edge = index.edges.get(step.edge);
+  const ends = stepEndpoints(index, flow, stepIndex);
+  const from = ends && index.nodes.get(ends.from);
+  const to = ends && index.nodes.get(ends.to);
 
   return (
     <>
       <div className={`${styles.eyebrow} ${styles.eyebrowText}`}>
-        {flow.name} · Step {index + 1} of {flow.steps.length}
+        {flow.name} · Step {stepIndex + 1} of {flow.steps.length}
       </div>
       <h2 className={styles.title}>{step.title}</h2>
       <div className={styles.route}>

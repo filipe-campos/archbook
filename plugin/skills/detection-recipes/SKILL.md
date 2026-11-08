@@ -18,8 +18,8 @@ Every recipe has the same sections:
 
 ## Workflow
 
-1. **Detect the stack.** Read the manifests at the root and in every workspace package: `package.json` (dependencies, `workspaces`), `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `go.mod`, `pyproject.toml`, `requirements*.txt`, `Gemfile`, `pom.xml`, `build.gradle*`, `composer.json`, `Cargo.toml`. Glob for infrastructure: `**/{docker-compose,compose}*.{yml,yaml}`, `**/Dockerfile*`, `**/*.tf`, `**/serverless.{yml,yaml}`, `**/cdk.json`, `**/{k8s,kubernetes,helm,charts,deploy}/**/*.{yml,yaml}`, `**/vercel.json`, `**/fly.toml`, `**/render.yaml`, `**/Procfile`. If `archbook/config.json` has `detected` entries, start from them and verify them.
-2. **Pick recipes** from the index below and read each matching file.
+1. **Detect the stack.** Read the manifests at the root and in every workspace package: `package.json` (dependencies, `workspaces`), `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `go.mod`, `pyproject.toml`, `requirements*.txt`, `Gemfile`, `pom.xml`, `build.gradle*`, `composer.json`, `Cargo.toml`. Glob for infrastructure: `**/{docker-compose,compose}*.{yml,yaml}`, `**/Dockerfile*`, `**/*.tf`, `**/serverless.{yml,yaml}`, `**/cdk.json`, `**/{k8s,kubernetes,helm,charts,deploy}/**/*.{yml,yaml}`, `**/vercel.json`, `**/fly.toml`, `**/render.yaml`, `**/Procfile`. If `archbook/config.json` has `detected` entries, start from them and verify them; an entry with a `recipe` names the recipe file that covers it.
+2. **Pick recipes** from the index below and read each matching file, starting with the `recipe` files of the `detected` entries.
 3. **Find the deployables first**: every package or folder with its own start command, Dockerfile, compose service or function definition. They are the nodes that everything else attaches to. `docker-compose.md` and the framework recipes do this.
 4. **Run each recipe's Signals.** Grep with `output_mode: "files_with_matches"` first, read the files that matter, then apply the recipe's Nodes, Edges and Sources rules.
 5. **Merge.** The same thing found by several recipes is one node: the `postgres` compose service and the Prisma datasource are one `database` node citing both. Match by hostname, env var, queue or topic name.
@@ -65,4 +65,4 @@ Every recipe has the same sections:
 
 ## Contributing a recipe
 
-Copy [`recipes/_template.md`](recipes/_template.md), keep its six sections and add a row to the index above.
+Copy [`recipes/_template.md`](recipes/_template.md), keep its six sections and add a row to the index above. The `detect` frontmatter lists the npm packages that reveal the technology; `archbook init` reads it to fill `detected`.

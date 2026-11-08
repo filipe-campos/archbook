@@ -1,14 +1,16 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import type { DetectedSignal } from "@archbook/schema";
+import { loadPackageRules, type PackageRule } from "./recipes.js";
 
 interface FileRule {
   name: string;
   /** Matched against the file name, or against the whole relative path when it contains "/". */
   patterns: string[];
+  recipe?: string;
 }
 
-const FILE_RULES: FileRule[] = [
+export const FILE_RULES: readonly FileRule[] = [
   { name: "Node.js", patterns: ["package.json"] },
   { name: "pnpm workspace", patterns: ["pnpm-workspace.yaml"] },
   { name: "Turborepo", patterns: ["turbo.json"] },
@@ -20,27 +22,12 @@ const FILE_RULES: FileRule[] = [
   {
     name: "Docker Compose",
     patterns: ["docker-compose*.yml", "docker-compose*.yaml", "compose.yml", "compose.yaml"],
+    recipe: "docker-compose.md",
   },
   { name: "Docker", patterns: ["Dockerfile", "*.Dockerfile"] },
   { name: "Serverless Framework", patterns: ["serverless.yml", "serverless.yaml"] },
   { name: "Terraform", patterns: ["*.tf"] },
   { name: "GitHub Actions", patterns: [".github/workflows/*.yml", ".github/workflows/*.yaml"] },
-];
-
-/** npm dependencies that map to an Archbook detection recipe. */
-const PACKAGE_RULES: Array<{ name: string; packages: string[] }> = [
-  { name: "Express", packages: ["express"] },
-  { name: "Fastify", packages: ["fastify"] },
-  { name: "NestJS", packages: ["@nestjs/core"] },
-  { name: "Next.js", packages: ["next"] },
-  { name: "BullMQ", packages: ["bullmq", "bull"] },
-  { name: "AWS SQS/SNS", packages: ["@aws-sdk/client-sqs", "@aws-sdk/client-sns", "sqs-consumer"] },
-  { name: "Kafka", packages: ["kafkajs", "@confluentinc/kafka-javascript", "node-rdkafka"] },
-  { name: "Prisma", packages: ["prisma", "@prisma/client"] },
-  { name: "TypeORM", packages: ["typeorm"] },
-  { name: "Redis", packages: ["redis", "ioredis"] },
-  { name: "Stripe", packages: ["stripe"] },
-  { name: "Axios", packages: ["axios"] },
 ];
 
 const ALWAYS_SKIPPED = new Set([
@@ -91,15 +78,27 @@ export function listProjectFiles(root: string, ignore: readonly string[] = []): 
   return files;
 }
 
-/** Heuristic stack detection from file names and package.json dependencies. No AI involved. */
-export function detectStack(root: string, ignore: readonly string[] = []): DetectedSignal[] {
+/**
+ * Heuristic stack detection from file names and package.json dependencies. No AI involved.
+ * Package rules come from the frontmatter of the detection recipes.
+ */
+export function detectStack(
+  root: string,
+  ignore: readonly string[] = [],
+  packageRules: readonly PackageRule[] = loadPackageRules(),
+): DetectedSignal[] {
   const files = listProjectFiles(root, ignore);
   const signals: DetectedSignal[] = [];
 
   for (const rule of FILE_RULES) {
     const found = files.filter((file) => rule.patterns.some((pattern) => matches(pattern, file)));
-    if (found.length > 0)
-      signals.push({ name: rule.name, files: found.slice(0, MAX_FILES_PER_SIGNAL) });
+    if (found.length > 0) {
+      signals.push({
+        name: rule.name,
+        files: found.slice(0, MAX_FILES_PER_SIGNAL),
+        ...(rule.recipe ? { recipe: rule.recipe } : {}),
+      });
+    }
   }
 
   const byLibrary = new Map<string, Set<string>>();
@@ -117,7 +116,7 @@ export function detectStack(root: string, ignore: readonly string[] = []): Detec
         Object.keys((pkg[key] as Record<string, string> | undefined) ?? {}),
       ),
     );
-    for (const rule of PACKAGE_RULES) {
+    for (const rule of packageRules) {
       if (rule.packages.some((name) => deps.has(name))) {
         const set = byLibrary.get(rule.name) ?? new Set<string>();
         set.add(manifest);
@@ -125,10 +124,14 @@ export function detectStack(root: string, ignore: readonly string[] = []): Detec
       }
     }
   }
-  for (const rule of PACKAGE_RULES) {
+  for (const rule of packageRules) {
     const manifests = byLibrary.get(rule.name);
-    if (manifests)
-      signals.push({ name: rule.name, files: [...manifests].slice(0, MAX_FILES_PER_SIGNAL) });
+    if (!manifests) continue;
+    signals.push({
+      name: rule.name,
+      files: [...manifests].slice(0, MAX_FILES_PER_SIGNAL),
+      recipe: rule.recipe,
+    });
   }
   return signals;
 }

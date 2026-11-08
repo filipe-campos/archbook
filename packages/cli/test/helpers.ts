@@ -10,6 +10,7 @@ import {
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach } from "vitest";
+import { createProgram } from "../src/cli.js";
 import type { CommandContext } from "../src/commands/context.js";
 import { sha256 } from "../src/io/fs.js";
 import { memoryOutput, type MemoryOutput } from "../src/io/output.js";
@@ -97,4 +98,29 @@ export function testContext(
     ...overrides,
     output: memoryOutput(),
   };
+}
+
+export interface CliRun {
+  exitCode: number;
+  output: MemoryOutput;
+  /** What the command threw; `main` would print it and exit with 1. */
+  error?: unknown;
+}
+
+/** Runs `archbook <args>` in-process, non-interactively, with a memory output. */
+export async function runCli(...args: string[]): Promise<CliRun> {
+  const output = memoryOutput();
+  const previous = process.exitCode;
+  try {
+    await createProgram({ output, prompter: defaultsPrompter, interactive: false }).parseAsync([
+      "node",
+      "archbook",
+      ...args,
+    ]);
+    return { exitCode: Number(process.exitCode ?? 0), output };
+  } catch (error) {
+    return { exitCode: 1, output, error };
+  } finally {
+    process.exitCode = previous;
+  }
 }

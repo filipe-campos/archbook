@@ -1,3 +1,11 @@
+---
+detect:
+  - name: Prisma
+    packages: [prisma, "@prisma/client"]
+  - name: TypeORM
+    packages: [typeorm]
+---
+
 # Prisma, TypeORM and other database clients
 
 Detects relational and document databases through ORMs, query builders and drivers. Produces one `database` node per physical database and one `db` edge from each deployable that queries it.

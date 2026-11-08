@@ -129,4 +129,10 @@ describe("option validation", () => {
     expect(output).toMatch(/argument 'foo' is invalid\. Allowed choices are generate, sync/);
     expect(output).not.toMatch(/^\s+at /m);
   });
+
+  it("requires a draft for merge", async () => {
+    const { error, output } = await parseError("merge", "--cwd", project());
+    expect(error.exitCode).not.toBe(0);
+    expect(output).toMatch(/required option '--draft <path>' not specified/);
+  });
 });

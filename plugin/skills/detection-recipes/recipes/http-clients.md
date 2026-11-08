@@ -1,3 +1,9 @@
+---
+detect:
+  - name: Axios
+    packages: [axios]
+---
+
 # HTTP clients
 
 Detects outbound HTTP calls (`fetch`, axios, got, ky, generated API clients and third-party SDKs) and decides whether each target is another node of this system or an external system. Produces outbound `http` edges and `external` nodes. gRPC clients follow the same rules with `grpc` edges.

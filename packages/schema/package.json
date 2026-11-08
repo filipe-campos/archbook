@@ -26,6 +26,7 @@
   "scripts": {
     "build": "tsup && node scripts/emit-json-schema.mjs",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {

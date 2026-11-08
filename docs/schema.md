@@ -13,6 +13,7 @@ This page documents schema version `0.1`. A complete, valid document lives in [`
 | `archbook/architecture.json` | The architecture document described on this page.                       |
 | `archbook/config.json`       | Generation settings. See [`archbook/config.json`](#archbookconfigjson). |
 | `archbook/.history/`         | Snapshots used by `archbook history` and `archbook undo`.               |
+| `archbook/.drafts/`          | Agent drafts the Claude Code commands merge; deleted after each merge.  |
 
 The **project root** is the directory that contains the `archbook/` folder. Every source path in the document is relative to it.
 
@@ -101,6 +102,10 @@ Every object is strict: a key that the schema does not define is a `schema` erro
 ### Defaults
 
 Optional fields with a default (for example `tech`, `sources` and `flows`) can be omitted. The tables below list each default.
+
+### Canonical formatting
+
+`archbook format` rewrites the file with keys in the order of the tables on this page, 2-space indentation and a final newline. It leaves out empty optional arrays, empty optional strings and `false` booleans, which mean the same as an absent field; `payload` is kept as written. Files written by the Claude Code commands already have this form, and `archbook format --check` exits with 1 when a file does not, for CI.
 
 ### Prose fields
 
@@ -399,32 +404,35 @@ npx archbook validate --json   # machine-readable output, for scripts and agents
 
 ### Warnings
 
-| Code                   | Triggered when                                                                        | How to fix                                                                                                                           |
-| ---------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `isolated-node`        | A node has no edges.                                                                  | Add the edge the code shows, or remove the node if nothing talks to it.                                                              |
-| `node-without-sources` | A node has no `sources`. Not raised for `external` and `actor` nodes.                 | Point to the code or configuration that defines the node: its entry point, its schema, its `docker-compose.yml` service.             |
-| `discontinuous-flow`   | A step that is not `async` starts at a node that no earlier step in the flow reached. | Add the missing step, fix the step order, use `reverse` for a response, or mark the step `async` if it really happens independently. |
+| Code                   | Triggered when                                                                                      | How to fix                                                                                                                                                         |
+| ---------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `isolated-node`        | A node has no edges.                                                                                | Add the edge the code shows, or remove the node if nothing talks to it.                                                                                            |
+| `node-without-sources` | A node has no `sources`. Not raised for `external` and `actor` nodes.                               | Point to the code or configuration that defines the node: its entry point, its schema, its `docker-compose.yml` service.                                           |
+| `discontinuous-flow`   | A step that is not `async` starts at a node that no earlier step in the flow reached.               | Add the missing step, fix the step order, use `reverse` for a response, or mark the step `async` if it really happens independently.                               |
+| `self-loop-edge`       | An edge has the same node as `from` and `to`. The viewer does not draw it.                          | Describe the internal work in the node's `description`, or point the edge at the component it really reaches.                                                      |
+| `duplicate-edge`       | An edge has the same `from`, `to` and `kind` as an earlier edge. The message names the earlier one. | Merge them into the earlier edge: combine labels, descriptions and sources, and point flow steps at it. Keep both only when flows must show distinct interactions. |
+| `empty-group`          | A group has no nodes, directly or through nested groups. The viewer does not draw it.               | Move the nodes that belong there into it, or remove the group.                                                                                                     |
 
 ## `archbook/config.json`
 
 `archbook/config.json` holds the settings that guide generation. It is created when Archbook is set up in a project and is read every time the architecture is generated or updated. Its JSON Schema is at `https://unpkg.com/archbook@0.1/schema/config.schema.json`. Objects are strict here too.
 
-| Field                   | Type             | Required / default                                            | Description                                                                                                                |
-| ----------------------- | ---------------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `$schema`               | string           | optional                                                      | JSON Schema URL, for editor autocomplete.                                                                                  |
-| `version`               | string           | required                                                      | Must be `"0.1"`.                                                                                                           |
-| `project.name`          | string           | required                                                      | Copied into `architecture.json`.                                                                                           |
-| `project.description`   | string           | default `""`                                                  | Copied into `architecture.json`.                                                                                           |
-| `project.repoUrl`       | URL              | optional                                                      | Absolute `http` or `https` URL. Copied into `architecture.json`.                                                           |
-| `project.defaultBranch` | string           | default `"main"`                                              | Copied into `architecture.json`.                                                                                           |
-| `audience`              | string           | default `"developers"`                                        | `developers`, `stakeholders` or `mixed`.                                                                                   |
-| `language`              | string           | default `"en"`                                                | Language of the generated prose, as a BCP 47 language tag such as `en` or `pt-BR`.                                         |
-| `detailLevel`           | string           | default `"medium"`                                            | `high-level`: systems only. `medium`: services, data stores and queues. `detailed`: also the main modules inside services. |
-| `flows`                 | array of strings | default `[]`                                                  | The most important flows to document, in plain language, e.g. `"Checkout from cart to confirmed payment"`.                 |
-| `externalContext`       | string           | optional                                                      | External systems or infrastructure that do not appear in the code, e.g. which managed services run in production.          |
-| `ignore`                | array of strings | default `["node_modules", "dist", "build", ".git", "vendor"]` | Paths skipped when scanning the codebase.                                                                                  |
-| `detected`              | array            | default `[]`                                                  | What a scan found: `{ "name": "Docker Compose", "files": ["docker-compose.yml"] }`. `files` defaults to `[]`.              |
-| `history.limit`         | integer          | default `20`                                                  | How many snapshots of `architecture.json` to keep in `archbook/.history/`, from 1 to 1000.                                 |
+| Field                   | Type             | Required / default                                            | Description                                                                                                                                                                                                                                                      |
+| ----------------------- | ---------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `$schema`               | string           | optional                                                      | JSON Schema URL, for editor autocomplete.                                                                                                                                                                                                                        |
+| `version`               | string           | required                                                      | Must be `"0.1"`.                                                                                                                                                                                                                                                 |
+| `project.name`          | string           | required                                                      | Copied into `architecture.json`.                                                                                                                                                                                                                                 |
+| `project.description`   | string           | default `""`                                                  | Copied into `architecture.json`.                                                                                                                                                                                                                                 |
+| `project.repoUrl`       | URL              | optional                                                      | Absolute `http` or `https` URL. Copied into `architecture.json`.                                                                                                                                                                                                 |
+| `project.defaultBranch` | string           | default `"main"`                                              | Copied into `architecture.json`.                                                                                                                                                                                                                                 |
+| `audience`              | string           | default `"developers"`                                        | `developers`, `stakeholders` or `mixed`.                                                                                                                                                                                                                         |
+| `language`              | string           | default `"en"`                                                | Language of the generated prose, as a BCP 47 language tag such as `en` or `pt-BR`.                                                                                                                                                                               |
+| `detailLevel`           | string           | default `"medium"`                                            | `high-level`: systems only. `medium`: services, data stores and queues. `detailed`: also the main modules inside services.                                                                                                                                       |
+| `flows`                 | array of strings | default `[]`                                                  | The most important flows to document, in plain language, e.g. `"Checkout from cart to confirmed payment"`.                                                                                                                                                       |
+| `externalContext`       | string           | optional                                                      | External systems or infrastructure that do not appear in the code, e.g. which managed services run in production.                                                                                                                                                |
+| `ignore`                | array of strings | default `["node_modules", "dist", "build", ".git", "vendor"]` | Paths skipped when scanning the codebase.                                                                                                                                                                                                                        |
+| `detected`              | array            | default `[]`                                                  | What `archbook init` found: `{ "name": "Docker Compose", "files": ["docker-compose.yml"], "recipe": "docker-compose.md" }`. `files` defaults to `[]`. `recipe`, optional, is the file name of the detection recipe that covers it (kebab-case, ending in `.md`). |
+| `history.limit`         | integer          | default `20`                                                  | How many snapshots of `architecture.json` to keep in `archbook/.history/`, from 1 to 1000.                                                                                                                                                                       |
 
 ```json
 {
@@ -435,7 +443,9 @@ npx archbook validate --json   # machine-readable output, for scripts and agents
   "detailLevel": "medium",
   "flows": ["Checkout from cart to confirmed payment", "Order confirmation email"],
   "externalContext": "Production runs on AWS ECS. Postgres is RDS and Redis is ElastiCache.",
-  "detected": [{ "name": "Docker Compose", "files": ["docker-compose.yml"] }]
+  "detected": [
+    { "name": "Docker Compose", "files": ["docker-compose.yml"], "recipe": "docker-compose.md" }
+  ]
 }
 ```
 

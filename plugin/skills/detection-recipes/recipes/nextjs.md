@@ -1,3 +1,9 @@
+---
+detect:
+  - name: Next.js
+    packages: [next]
+---
+
 # Next.js
 
 Detects Next.js projects: pages, App Router route handlers, Pages Router API routes, server actions, middleware and rewrites. Produces one `app` node per Next.js project and the edges its server code and browser code create.

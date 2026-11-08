@@ -1,3 +1,9 @@
+---
+detect:
+  - name: BullMQ
+    packages: [bullmq, bull]
+---
+
 # BullMQ (and Bull)
 
 Detects Redis-backed job queues built with BullMQ or Bull. Produces one `queue` node per queue name, `worker` nodes for the processes that consume them, and `queue` edges. Celery, Sidekiq, RQ and asynq follow the same modelling.

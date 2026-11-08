@@ -278,6 +278,57 @@ describe("validateArchitecture", () => {
       ];
       expect(codes(doc).warnings).toEqual([]);
     });
+
+    it("warns about edges from a node to itself", () => {
+      const doc = baseDocument();
+      doc.edges.push({ id: "api-retry", from: "api", to: "api", kind: "http" });
+      const { result } = codes(doc);
+      expect(result.warnings.map((w) => [w.code, formatIssuePath(w.path)])).toEqual([
+        ["self-loop-edge", "edges[3]"],
+      ]);
+      expect(result.warnings[0]!.message).toContain('"api-retry"');
+    });
+
+    it("warns about an edge that repeats the from, to and kind of an earlier one", () => {
+      const doc = baseDocument();
+      doc.edges.push({ id: "web-calls-api", from: "web", to: "api", kind: "http" });
+      const { result } = codes(doc);
+      expect(result.warnings.map((w) => [w.code, formatIssuePath(w.path)])).toEqual([
+        ["duplicate-edge", "edges[3]"],
+      ]);
+      expect(result.warnings[0]!.message).toContain('repeats edge "web-to-api"');
+    });
+
+    it("does not treat edges with another kind or direction as duplicates", () => {
+      const doc = baseDocument();
+      doc.edges.push(
+        { id: "web-events-api", from: "web", to: "api", kind: "event" },
+        { id: "api-to-web", from: "api", to: "web", kind: "http" },
+      );
+      expect(codes(doc).warnings).toEqual([]);
+    });
+
+    it("does not add duplicate-edge to a duplicate id", () => {
+      const doc = baseDocument();
+      doc.edges.push({ ...doc.edges[1]! });
+      const { errors, warnings } = codes(doc);
+      expect(errors).toEqual(["duplicate-id"]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("warns about groups without nodes at any depth", () => {
+      const doc = baseDocument();
+      doc.groups = [
+        { id: "cloud", name: "Cloud" },
+        { id: "backend", name: "Backend", parent: "cloud" },
+        { id: "data", name: "Data", parent: "cloud" },
+      ];
+      const { result } = codes(doc);
+      expect(result.warnings.map((w) => [w.code, formatIssuePath(w.path)])).toEqual([
+        ["empty-group", "groups[2]"],
+      ]);
+      expect(result.warnings[0]!.message).toContain('"data"');
+    });
   });
 });
 
