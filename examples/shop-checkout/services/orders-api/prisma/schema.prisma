@@ -4,8 +4,8 @@ datasource db {
 }
 
 model Order {
-  id              String      @id @default(cuid())
-  cartId          String
+  id              String      @id
+  cartId          String      @unique
   customerEmail   String
   total           Int
   currency        String      @default("usd")
@@ -13,11 +13,38 @@ model Order {
   paymentIntentId String?
   paidAt          DateTime?
   createdAt       DateTime    @default(now())
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id        String @id @default(cuid())
+  orderId   String
+  sku       String
+  quantity  Int
+  unitPrice Int
+  order     Order  @relation(fields: [orderId], references: [id])
 }
 
 enum OrderStatus {
   PENDING_PAYMENT
-  PAYMENT_PROCESSING
   CONFIRMED
   FAILED
+}
+
+/// Written in the same transaction as the state change it announces.
+model OutboxEvent {
+  id          BigInt    @id @default(autoincrement())
+  type        String
+  aggregateId String
+  payload     Json
+  createdAt   DateTime  @default(now())
+  publishedAt DateTime?
+
+  @@index([publishedAt, id])
+}
+
+/// One row per Stripe event id: a redelivered webhook hits the primary key and is skipped.
+model ProcessedStripeEvent {
+  id          String   @id
+  processedAt DateTime @default(now())
 }

@@ -36,7 +36,8 @@ const edgeTypes: EdgeTypes = { arch: ArchEdgeView };
 
 export type { CameraFocus } from "./useCameraFocus";
 
-const STEP_MOVE: CameraMove = { duration: 700, padding: 0.45, maxZoom: 1.25 };
+// A low zoom ceiling keeps neighbors in view and the scale steady from one step to the next.
+const STEP_MOVE: CameraMove = { duration: 700, padding: 0.5, maxZoom: 0.9 };
 const SEARCH_MOVE: CameraMove = { duration: 600, padding: 0.6, maxZoom: 1.2 };
 const still = (move: CameraMove): CameraMove => ({ ...move, duration: 0 });
 const STILL_STEP_MOVE = still(STEP_MOVE);
@@ -154,14 +155,16 @@ export function Canvas({
           >
             <Background variant={BackgroundVariant.Dots} gap={24} size={1.4} />
             <Controls showInteractive={false} position="top-left" />
-            <MiniMap
-              pannable
-              zoomable
-              nodeClassName={minimapClass}
-              nodeBorderRadius={6}
-              style={{ width: 168, height: 108 }}
-              position="bottom-right"
-            />
+            {!stepFocus && (
+              <MiniMap
+                pannable
+                zoomable
+                nodeClassName={minimapClass}
+                nodeBorderRadius={6}
+                style={{ width: 168, height: 108 }}
+                position="bottom-right"
+              />
+            )}
           </ReactFlow>
         </HighlightContext.Provider>
       </CanvasActionsContext.Provider>

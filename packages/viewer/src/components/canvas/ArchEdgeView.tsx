@@ -1,7 +1,9 @@
 import { memo, useEffect, useRef } from "react";
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps } from "@xyflow/react";
 import { cx } from "../../lib/cx";
+import { longestRunMiddle, roundedPath } from "../../graph/edgePath";
 import type { CanvasEdge } from "../../graph/elements";
+import type { EdgeRoute } from "../../graph/layout";
 import { emphasisOf, type Emphasis } from "../../graph/highlight";
 import { EDGE_KIND_STYLES } from "../kinds";
 import { useCanvasActions, useHighlight } from "./context";
@@ -27,15 +29,11 @@ export const ArchEdgeView = memo(function ArchEdgeView(props: EdgeProps<CanvasEd
   const highlight = useHighlight();
   const actions = useCanvasActions();
   const emphasis = emphasisOf(highlight, id, "edge");
-  const [path, labelX, labelY] = getBezierPath({
-    sourceX,
-    sourceY,
-    targetX,
-    targetY,
-    sourcePosition,
-    targetPosition,
-  });
   if (!data) return null;
+  const route = data.route;
+  const [path, labelX, labelY] = route
+    ? [roundedPath(route.points), ...labelCenter(route)]
+    : getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
   const kind = EDGE_KIND_STYLES[data.edge.kind];
   const travel = highlight.travel?.edgeId === id ? highlight.travel : undefined;
 
@@ -89,6 +87,14 @@ export const ArchEdgeView = memo(function ArchEdgeView(props: EdgeProps<CanvasEd
     </>
   );
 });
+
+function labelCenter(route: EdgeRoute): [number, number] {
+  if (route.label) {
+    return [route.label.x + route.label.width / 2, route.label.y + route.label.height / 2];
+  }
+  const middle = longestRunMiddle(route.points);
+  return [middle.x, middle.y];
+}
 
 function Particle({
   path,

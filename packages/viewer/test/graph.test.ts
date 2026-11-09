@@ -29,35 +29,50 @@ const checkout = example.flows.find((flow) => flow.id === "checkout")!;
 const exampleIndex = indexArchitecture(example);
 
 describe("layout", () => {
+  // The example has no nested groups, so these tests add one, listed before its parent.
+  const nested: Architecture = {
+    ...example,
+    groups: [{ id: "workers", name: "Workers", parent: "aws" }, ...example.groups],
+    nodes: example.nodes.map((node) =>
+      node.id === "payment-worker" ? { ...node, group: "workers" } : node,
+    ),
+  };
+
   it("orders groups parents first and hides empty groups", () => {
     const arch: Architecture = {
-      ...example,
-      groups: [...example.groups, { id: "empty", name: "Empty" }],
+      ...nested,
+      groups: [...nested.groups, { id: "empty", name: "Empty" }],
     };
     const ids = visibleGroups(arch).map((group) => group.id);
     expect(ids).not.toContain("empty");
-    expect(ids.indexOf("aws")).toBeLessThan(ids.indexOf("backend"));
+    expect(ids.indexOf("aws")).toBeLessThan(ids.indexOf("workers"));
   });
 
   it("nests groups in the ELK graph in document order", () => {
-    const graph = toElkGraph(example);
+    const graph = toElkGraph(nested);
     expect(graph.children!.map((child) => child.id)).toEqual([
       "customer",
       groupNodeId("vercel"),
       groupNodeId("aws"),
       "stripe",
-      "email-service",
+      "postmark",
     ]);
     const aws = graph.children!.find((child) => child.id === groupNodeId("aws"))!;
     expect(aws.children!.map((child) => child.id)).toEqual([
-      groupNodeId("backend"),
-      groupNodeId("data"),
+      "orders-api",
+      "outbox-relay",
+      groupNodeId("workers"),
+      "notifications-worker",
+      "payments-queue",
+      "order-events",
+      "postgres",
+      "redis",
     ]);
     expect(graph.edges).toHaveLength(example.edges.length);
   });
 
   it("lays out every node inside its group", async () => {
-    const layout = await layoutArchitecture(example);
+    const { boxes: layout } = await layoutArchitecture(example);
     for (const node of example.nodes) {
       const box = layout.get(node.id)!;
       expect(box).toMatchObject({ width: NODE_WIDTH, height: NODE_HEIGHT });
@@ -191,7 +206,7 @@ describe("buildElements", () => {
     for (const node of nodes) {
       if (node.parentId) expect(index.get(node.parentId)!).toBeLessThan(index.get(node.id)!);
     }
-    expect(nodes.find((node) => node.id === "orders-api")!.parentId).toBe(groupNodeId("backend"));
+    expect(nodes.find((node) => node.id === "orders-api")!.parentId).toBe(groupNodeId("aws"));
     expect(nodes.find((node) => node.id === "customer")!.parentId).toBeUndefined();
     expect(edges.map((edge) => edge.id)).toEqual(example.edges.map((edge) => edge.id));
   });

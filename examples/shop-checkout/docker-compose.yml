@@ -11,16 +11,23 @@ services:
     environment:
       DATABASE_URL: postgres://shop:shop@postgres:5432/shop
       REDIS_URL: redis://redis:6379
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET}
+    depends_on: [postgres, redis]
+
+  outbox-relay:
+    build: ./workers/outbox-relay
+    environment:
+      DATABASE_URL: postgres://shop:shop@postgres:5432/shop
+      REDIS_URL: redis://redis:6379
     depends_on: [postgres, redis]
 
   payment-worker:
     build: ./workers/payment-worker
     environment:
-      DATABASE_URL: postgres://shop:shop@postgres:5432/shop
       REDIS_URL: redis://redis:6379
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY}
-    depends_on: [postgres, redis]
+    depends_on: [redis]
 
   notifications-worker:
     build: ./workers/notifications-worker
@@ -39,3 +46,4 @@ services:
 
   redis:
     image: redis:7
+    command: ["redis-server", "--appendonly", "yes"]

@@ -7,7 +7,7 @@ export async function placeOrder(form: FormData) {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "idempotency-key": crypto.randomUUID(),
+      "idempotency-key": String(form.get("idempotencyKey")),
     },
     body: JSON.stringify({
       cartId: form.get("cartId"),
@@ -15,6 +15,7 @@ export async function placeOrder(form: FormData) {
     }),
   });
 
-  const order = await response.json();
+  if (response.status === 409) throw new Error("This order is already being placed.");
+  const order: { orderId: string } = await response.json();
   redirect(`/orders/${order.orderId}`);
 }

@@ -41,7 +41,9 @@ Choices made where the v0.1 brief left room, newest topics last. Each entry says
 
 ## Viewer
 
-- **Layout.** ELK `layered`, left to right, with `INCLUDE_CHILDREN` for nested groups. Children are added in document order and cycles are broken by model order, so the first node (usually the actor) starts on the left. Groups with no nodes are not drawn.
+- **Layout.** ELK `layered`, left to right, with `INCLUDE_CHILDREN` for nested groups. Children are added in document order and cycles are broken by model order, so the first node (usually the actor) starts on the left. Groups with no nodes are not drawn. Layering is `LONGEST_PATH_SOURCE`, set on the root and on every group because ELK reads it per graph level: each node sits as early as its callers allow, so entrypoints come first and data stores and providers last, in reading order.
+- **Edges follow ELK's routes.** Edges are drawn along the orthogonal routes ELK computes (`elk.json.edgeCoords: ROOT` returns them in canvas coordinates across groups), with rounded corners, and labels go where ELK reserved room for them. Earlier Bezier curves between handles ignored the layout and crossed components. An edge touching a node with a manual `position` has no valid route and falls back to a curve.
+- **Replay camera.** A step is framed with a zoom ceiling of 0.9, so neighbors stay in view and the scale stays steady between steps, and the minimap is hidden while a flow plays so the stage holds only the story.
 - **Replay timing.** Real durations (1 ms to minutes) are clamped to 0.6 to 2.4 s of travel, so slower steps still look slower but nothing flashes by. Each step stays on screen for its travel time plus 1.8 s of reading time, divided by the speed.
 - **URLs.** `#/flow/<id>/step/<n>` (1-based), `#/flow/<id>`, `#/node/<id>` and `#/edge/<id>`. Playback uses `replaceState`, so the browser history does not fill with steps.
 - **Inspecting during a replay.** Clicking a node while a flow is open shows its details without leaving the flow; the panel goes back to the step when the replay moves on.

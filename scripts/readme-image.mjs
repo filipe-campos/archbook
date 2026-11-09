@@ -7,7 +7,7 @@ import { chromium } from "@playwright/test";
 
 const root = path.resolve(import.meta.dirname, "..");
 const port = 4420;
-const route = "#/flow/checkout/step/5";
+const route = "#/flow/checkout/step/7";
 const out = path.join(root, "docs/assets/hero.png");
 
 const server = spawn(process.execPath, [path.join(root, "e2e/serve-example.mjs"), String(port)], {

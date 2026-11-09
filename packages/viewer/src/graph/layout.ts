@@ -5,6 +5,7 @@ import {
   type ArchGroup,
 } from "@archbook/schema";
 import type { ElkExtendedEdge, ElkNode } from "elkjs/lib/elk-api.js";
+import type { Point } from "./edgePath";
 
 export const NODE_WIDTH = 240;
 export const NODE_HEIGHT = 88;
@@ -22,14 +23,45 @@ interface Box {
 /** Boxes keyed by canvas node id (group ids are prefixed). Positions are relative to the parent group. */
 export type Layout = Map<string, Box>;
 
+/** An edge as ELK routed it, in canvas coordinates: its bend points and its label's box. */
+export interface EdgeRoute {
+  points: Point[];
+  label?: Box;
+}
+
+export interface ArchitectureLayout {
+  boxes: Layout;
+  /** Edges without a route (one end was moved by hand) are drawn as plain curves. */
+  routes: Map<string, EdgeRoute>;
+}
+
+/** Width reserved for an edge label: the canvas draws labels in an 11 px monospace pill. */
+export const labelWidth = (label: string) => Math.ceil(label.length * 6.8) + 22;
+export const LABEL_HEIGHT = 22;
+
+// Layering is read per graph level, so groups need it too. Placing each node as early as its
+// callers allow keeps the story in reading order: entrypoints first, data stores and providers last.
+const LAYERING: Record<string, string> = {
+  "elk.layered.layering.strategy": "LONGEST_PATH_SOURCE",
+};
+
 const ROOT_OPTIONS: Record<string, string> = {
+  ...LAYERING,
   "elk.algorithm": "layered",
   "elk.direction": "RIGHT",
   "elk.hierarchyHandling": "INCLUDE_CHILDREN",
   "elk.layered.spacing.nodeNodeBetweenLayers": "120",
   "elk.spacing.nodeNode": "44",
   "elk.spacing.componentComponent": "90",
-  "elk.spacing.edgeLabel": "8",
+  "elk.spacing.edgeLabel": "6",
+  "elk.spacing.edgeNode": "26",
+  "elk.spacing.edgeEdge": "14",
+  "elk.layered.spacing.edgeNodeBetweenLayers": "26",
+  "elk.layered.spacing.edgeEdgeBetweenLayers": "14",
+  "elk.edgeRouting": "ORTHOGONAL",
+  // Every route comes back in root coordinates, which are the canvas coordinates whatever group
+  // the edge crosses.
+  "elk.json.edgeCoords": "ROOT",
   // Respect document order: the first node listed (usually the actor) starts on the left.
   "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
   "elk.layered.cycleBreaking.strategy": "MODEL_ORDER",
@@ -37,6 +69,7 @@ const ROOT_OPTIONS: Record<string, string> = {
 };
 
 const GROUP_OPTIONS: Record<string, string> = {
+  ...LAYERING,
   "elk.padding": `[top=${GROUP_PADDING.top},left=${GROUP_PADDING.left},bottom=${GROUP_PADDING.bottom},right=${GROUP_PADDING.right}]`,
 };
 
@@ -102,8 +135,8 @@ export function toElkGraph(arch: Architecture): ElkNode {
           {
             id: `${edge.id}:label`,
             text: edge.label,
-            width: edge.label.length * 7 + 20,
-            height: 22,
+            width: labelWidth(edge.label),
+            height: LABEL_HEIGHT,
           },
         ]
       : [],
@@ -183,7 +216,7 @@ let defaultEngine: LayoutEngine | undefined;
 export async function layoutArchitecture(
   arch: Architecture,
   engine: LayoutEngine = (defaultEngine ??= createLayoutEngine()),
-): Promise<Layout> {
+): Promise<ArchitectureLayout> {
   const result = await engine.layout(toElkGraph(arch));
   const layout: Layout = new Map();
   const collect = (node: ElkNode) => {
@@ -199,7 +232,36 @@ export async function layoutArchitecture(
   };
   collect(result);
   applyManualPositions(arch, layout);
-  return layout;
+  return { boxes: layout, routes: edgeRoutes(arch, result) };
+}
+
+/** Routes of the laid-out edges, skipping those that touch a node placed by hand. */
+export function edgeRoutes(arch: Architecture, result: ElkNode): Map<string, EdgeRoute> {
+  const moved = new Set(arch.nodes.filter((node) => node.position).map((node) => node.id));
+  const byId = new Map(drawableEdges(arch).map((edge) => [edge.id, edge]));
+  const routes = new Map<string, EdgeRoute>();
+  for (const elkEdge of result.edges ?? []) {
+    const edge = byId.get(elkEdge.id);
+    const section = elkEdge.sections?.[0];
+    if (!edge || !section || moved.has(edge.from) || moved.has(edge.to)) continue;
+    const label = elkEdge.labels?.[0];
+    routes.set(edge.id, {
+      points: [section.startPoint, ...(section.bendPoints ?? []), section.endPoint].map(
+        ({ x, y }) => ({ x, y }),
+      ),
+      ...(label?.x !== undefined && label.y !== undefined
+        ? {
+            label: {
+              x: label.x,
+              y: label.y,
+              width: label.width ?? 0,
+              height: label.height ?? LABEL_HEIGHT,
+            },
+          }
+        : {}),
+    });
+  }
+  return routes;
 }
 
 /** Applies `position` overrides, then grows groups so they still enclose their children. */

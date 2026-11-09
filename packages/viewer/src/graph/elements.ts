@@ -1,10 +1,16 @@
 import type { ArchEdge, ArchGroup, ArchNode, Architecture } from "@archbook/schema";
 import type { Edge, Node } from "@xyflow/react";
-import { drawableEdges, groupNodeId, visibleGroups, type Layout } from "./layout";
+import {
+  drawableEdges,
+  groupNodeId,
+  visibleGroups,
+  type ArchitectureLayout,
+  type EdgeRoute,
+} from "./layout";
 
 export type ArchNodeData = { node: ArchNode };
 type GroupNodeData = { group: ArchGroup };
-type ArchEdgeData = { edge: ArchEdge };
+type ArchEdgeData = { edge: ArchEdge; route?: EdgeRoute };
 
 export type ArchCanvasNode = Node<ArchNodeData, "arch">;
 export type GroupCanvasNode = Node<GroupNodeData, "group">;
@@ -20,7 +26,7 @@ export interface ElementLabels {
 /** Converts the document and its layout into canvas elements. Parents come before children. */
 export function buildElements(
   arch: Architecture,
-  layout: Layout,
+  { boxes: layout, routes }: ArchitectureLayout,
   labels?: ElementLabels,
 ): { nodes: CanvasNode[]; edges: CanvasEdge[] } {
   const groups = visibleGroups(arch);
@@ -67,7 +73,7 @@ export function buildElements(
     source: edge.from,
     target: edge.to,
     type: "arch",
-    data: { edge },
+    data: routes.has(edge.id) ? { edge, route: routes.get(edge.id)! } : { edge },
     ...(edge.label
       ? { focusable: false, domAttributes: { "aria-hidden": true } }
       : labels
