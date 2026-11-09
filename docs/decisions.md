@@ -9,6 +9,7 @@ Choices made where the v0.1 brief left room, newest topics last. Each entry says
 - **TypeScript 6.0, not 7.** typescript-eslint supports TypeScript up to 6.0.
 - **commander 14, not 15.** commander 15 needs Node 22; the CLI supports Node 20.12+ (the floor of `@clack/prompts`).
 - **Node versions.** Using the CLI needs Node 20.12+. Developing Archbook needs Node 22.18+, because tsup 9 and Vite 8 require it. CI builds on Node 22 and 24, then packs the CLI, installs the tarball in an empty folder on Node 20.12 and runs it there, so a missing file in `files` or a dependency left in `devDependencies` fails CI.
+- **`@types/node` follows the development floor (22).** Newer majors would type APIs that Node 20 and 22 lack, so Dependabot ignores them; move it only together with the Node versions above.
 - **Live types inside the monorepo.** Package `exports` carry an `@archbook/source` condition that points at `src/`. TypeScript (`customConditions`) and esbuild resolve it, and Vite and Vitest use aliases, so typecheck, tests and `pnpm dev:example` work without building the schema first.
 - **CSS modules plus one global theme file** (CSS variables for light and dark) rather than Tailwind.
 - **pnpm 11 build approval.** `pnpm-workspace.yaml` allows esbuild's install script (`allowBuilds`); pnpm 11 blocks unapproved ones.

@@ -1,6 +1,8 @@
 # Contributing to Archbook
 
-Thanks for helping! The most valuable contribution is often the smallest: a **detection recipe** that teaches the agents to recognize one more framework, queue or data store. That is the first section below.
+Thanks for helping! By taking part you agree to follow the [code of conduct](CODE_OF_CONDUCT.md).
+
+The most valuable contribution is often the smallest: a **detection recipe** that teaches the agents to recognize one more framework, queue or data store. That is the first section below.
 
 ## Write a detection recipe
 
@@ -120,8 +122,22 @@ To check the plugin manifests and frontmatter with Claude Code itself: `claude p
 - **Record decisions.** When you make a choice the docs do not cover, add a short entry to [`docs/decisions.md`](docs/decisions.md).
 - **Comments explain why**, not what. Keep them short.
 
+## Pull requests
+
+1. Fork the repository and create a branch from `main` (for example `recipe-rabbitmq`).
+2. Keep each pull request focused on one change. For large features or changes to the schema, open an issue or a discussion first, so we can agree on the approach before you invest time in it.
+3. Make sure the [checks](#checks) pass.
+4. Open the pull request against `main` and fill in the template: what changed, why, and how you tested it. Screenshots help a lot for viewer changes.
+5. A maintainer will review it. Please keep the branch up to date with `main` and answer review comments in the thread.
+
 ## Reporting bugs
 
-Open an issue with the command you ran, what you expected, what happened, and, when the bug is about generated content, the relevant part of `archbook/architecture.json` and the output of `npx archbook validate`.
+Open an issue with the [bug report form](https://github.com/filipe-campos/archbook/issues/new?template=bug_report.yml): the command you ran, what you expected, what happened, and, when the bug is about generated content, the relevant part of `archbook/architecture.json` and the output of `npx archbook validate`.
 
 When the CLI prints `Unexpected error`, run the command again with `ARCHBOOK_DEBUG=1` set (for example `ARCHBOOK_DEBUG=1 npx archbook generate`) and include the stack trace it prints.
+
+Security vulnerabilities must not go to a public issue: follow the [security policy](SECURITY.md).
+
+## License
+
+By contributing, you agree that your contributions will be licensed under the [MIT License](LICENSE).

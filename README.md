@@ -108,8 +108,18 @@ jobs:
 
 ## Contributing
 
-Contributions are welcome, especially **detection recipes**: short guides that teach the agents to recognize a framework, queue or data store. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome, especially **detection recipes**: short guides that teach the agents to recognize a framework, queue or data store. See [CONTRIBUTING.md](CONTRIBUTING.md) and the [code of conduct](CODE_OF_CONDUCT.md).
+
+Found a bug or have an idea? [Open an issue](https://github.com/filipe-campos/archbook/issues/new/choose). Questions go to [Discussions](https://github.com/filipe-campos/archbook/discussions), and security issues to the [security policy](SECURITY.md), never to a public issue.
+
+## Support Archbook
+
+Archbook is built and maintained in my free time. If it helps you, please consider supporting it:
+
+- [GitHub Sponsors](https://github.com/sponsors/filipe-campos)
+- Star the repository, it really helps others find it.
+- Share it with a friend or on social media.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](LICENSE) © Archbook contributors

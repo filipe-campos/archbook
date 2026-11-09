@@ -1,0 +1,84 @@
+name: Bug report
+description: Something in Archbook is broken or behaves unexpectedly
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please search the [existing issues](https://github.com/filipe-campos/archbook/issues) first.
+        Security vulnerabilities must **not** be reported here; follow the [security policy](https://github.com/filipe-campos/archbook/security/policy) instead.
+
+  - type: input
+    id: version
+    attributes:
+      label: Archbook version
+      description: The output of `npx archbook --version`, or the commit when running from source.
+      placeholder: e.g. 0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - CLI (init, dev, build, validate, format, history, undo, remove)
+        - Generation (archbook generate or the Claude Code commands)
+        - Viewer (diagram, panel, search, flow replay)
+        - Claude Code plugin install
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, Node.js version and, for generation, the Claude Code version (`claude --version`).
+      placeholder: e.g. macOS 26.1 (arm64), Node 22.18.0, Claude Code 2.3.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The command you ran and the kind of project you ran it on (language, frameworks, monorepo or not).
+      placeholder: |
+        1. In a ... project, run `npx archbook ...`
+        2. ...
+        3. See the error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead. Screenshots help a lot for viewer bugs.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output
+      description: |
+        The terminal output. When the CLI prints `Unexpected error`, run the command again with `ARCHBOOK_DEBUG=1` and paste the stack trace.
+        For generated content, include the output of `npx archbook validate` and the relevant part of `archbook/architecture.json`.
+        Please remove tokens, paths or anything private before pasting.
+      render: shell
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Your `archbook/config.json`, the browser for viewer bugs, or anything else that might help.

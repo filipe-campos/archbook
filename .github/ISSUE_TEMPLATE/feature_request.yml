@@ -1,0 +1,55 @@
+name: Feature request
+description: Suggest a new feature or an improvement to an existing one
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion! Please search the [existing issues](https://github.com/filipe-campos/archbook/issues) first.
+        For open-ended ideas or questions, [Discussions](https://github.com/filipe-campos/archbook/discussions) may be a better place.
+        Missing support for a framework, queue or data store? A [detection recipe](https://github.com/filipe-campos/archbook/blob/main/CONTRIBUTING.md#write-a-detection-recipe) is often the quickest way to add it.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you trying to do, and what gets in the way today?
+      placeholder: When I ..., I have to ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: How should it work? Describe the command, schema field or viewer behavior you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Workarounds you use today, or how other documentation and diagram tools handle it.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - CLI
+        - Generation and Claude Code commands
+        - Detection recipes
+        - Schema (architecture.json)
+        - Viewer
+        - Publishing (archbook build, GitHub Pages)
+        - Other
+
+  - type: checkboxes
+    id: contribute
+    attributes:
+      label: Contribution
+      options:
+        - label: I would like to implement this myself

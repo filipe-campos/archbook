@@ -10,6 +10,7 @@ This folder holds the commands, agents and skills used to develop this repositor
   agents/<area>/     # subagents, invoked by name
   skills/dev-<area>/ # knowledge loaded on demand
   plans/             # local plans (gitignored)
+  commands/local/    # local commands (gitignored)
 ```
 
 ## Commands
@@ -24,6 +25,8 @@ This folder holds the commands, agents and skills used to develop this repositor
 | `recipes` | `/recipes:test <recipe> <path>` | Checks a recipe's patterns against a real project                       |
 | `review`  | `/review:pre-pr [base]`         | Reviews the branch with the review agents and runs the checks           |
 | `release` | `/release:bump <version>`       | Moves every version that must stay in sync                              |
+| `release` | `/release:publish [version]`    | Publishes the CLI to npm, tags it and creates the GitHub release        |
+| `git`     | `/git:commit-push [message]`    | Checks, commits in the repository's style and pushes                    |
 
 ## Agents
 

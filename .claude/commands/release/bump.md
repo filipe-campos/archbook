@@ -26,4 +26,4 @@ Search the repo for the old version (`git grep -n "<old version>"`, excluding `p
 
 ## Finish
 
-Run `/dev:check full`. Report the files changed and suggest a commit message (`Release <version>`). Do not commit, tag or publish.
+Run `/dev:check full`. Report the files changed and suggest a commit message (`Release <version>`). Do not commit, tag or publish; `/release:publish` does that.
