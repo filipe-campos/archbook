@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-09
+
 ### Added
 
 - The `archbook` CLI: `init`, `generate`, `dev`, `build`, `validate`, `format`, `history`, `undo` and `remove`.
@@ -24,4 +26,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The `curator` agent, which polishes names, labels, tech chips and step titles so generated docs read as one product.
 - Community files: code of conduct, security policy, issue forms, pull request template and funding links.
 
-[Unreleased]: https://github.com/filipe-campos/archbook/commits/main
+[Unreleased]: https://github.com/filipe-campos/archbook/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/filipe-campos/archbook/releases/tag/v0.1.0

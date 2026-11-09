@@ -11,6 +11,7 @@ playwright-report/
 packages/cli/viewer/
 packages/cli/plugin/
 packages/cli/schema/
+packages/cli/README.md
 
 # Local Archbook state when dogfooding
 archbook/.history/

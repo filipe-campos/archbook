@@ -1,6 +1,6 @@
 // Copies what the published package needs next to dist/: the built viewer, the Claude Code
-// plugin and the JSON Schemas.
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+// plugin, the JSON Schemas and the README.
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 const here = (relative) => fileURLToPath(new URL(relative, import.meta.url));
@@ -22,3 +22,13 @@ mkdirSync(here("../schema"));
 for (const file of ["architecture.schema.json", "config.schema.json"]) {
   cpSync(here(`../../schema/dist/${file}`), here(`../schema/${file}`));
 }
+
+// npm resolves relative links against packages/cli, so point them at the release tag on GitHub.
+const pkg = JSON.parse(readFileSync(here("../package.json"), "utf8"));
+const repo = pkg.repository.url.replace(/^git\+/, "").replace(/\.git$/, "");
+const ref = `v${pkg.version}`;
+const readme = readFileSync(here("../../../README.md"), "utf8").replace(
+  /(!?)\[([^\]]*)\]\((?!https?:|#|mailto:)([^)\s]+)\)/g,
+  (_, image, text, path) => `${image}[${text}](${repo}/${image ? "raw" : "blob"}/${ref}/${path})`,
+);
+writeFileSync(here("../README.md"), readme);

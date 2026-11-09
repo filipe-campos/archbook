@@ -5,6 +5,7 @@ Choices made where the v0.1 brief left room, newest topics last. Each entry says
 ## Packaging and tooling
 
 - **Only `archbook` is published.** `@archbook/schema` and `@archbook/viewer` are `private`. The CLI bundles the schema code with tsup and copies the built viewer, the plugin and the JSON Schemas into its package (`viewer/`, `plugin/`, `schema/`). No npm organization is needed for v0.1.
+- **The npm README is a build copy.** The CLI build copies the root `README.md` into `packages/cli/` and turns its relative links into GitHub URLs at the `v<version>` tag, because npm resolves relative links against `packages/cli/`. The root README keeps relative links, so it still works on GitHub and in forks.
 - **Zod 4 with its native `z.toJSONSchema()`** instead of `zod-to-json-schema`, which does not support Zod 4. The JSON Schema targets draft-07 because editors support it best, and uses the input shape, so fields with defaults are optional.
 - **TypeScript 6.0, not 7.** typescript-eslint supports TypeScript up to 6.0.
 - **commander 14, not 15.** commander 15 needs Node 22; the CLI supports Node 20.12+ (the floor of `@clack/prompts`).
