@@ -113,3 +113,4 @@ Choices made where the v0.1 brief left room, newest topics last. Each entry says
 ## Open points
 
 - **Windows.** The CLI is built and tested on Windows in CI, but the job may fail without blocking. `generate` spawns `claude` without a shell, which cannot start the `.cmd` shim npm installs on Windows, so starting Claude Code there may need `shell: true` or resolving `claude.exe`; for the same reason the `generate` tests, which run a fake `claude` written in JavaScript, are skipped on Windows. The `archbook` shim has a `.cmd` variant.
+- **LF everywhere.** `.gitattributes` checks every text file out with LF, so Windows clones keep `architecture.json` in its canonical form and frontmatter parses the same as on Unix.

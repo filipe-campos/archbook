@@ -72,6 +72,14 @@ function phaseOf(name: string, input: Record<string, unknown> = {}): GenerationP
   return undefined;
 }
 
+/** Rewrites absolute paths under `root` as project paths with forward slashes. */
+function withoutRoot(text: string, root: string): string {
+  const prefix = (root + path.sep).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(new RegExp(`${prefix}(\\S*)`, "g"), (_, rest: string) =>
+    rest.split(path.sep).join("/"),
+  );
+}
+
 /** Progress lines for one stream message; remembers subagents so their lines can be labelled. */
 export function describeStreamMessage(
   message: StreamMessage,
@@ -95,7 +103,7 @@ export function describeStreamMessage(
       if ((block.name === "Agent" || block.name === "Task") && block.id) {
         state.agents.set(block.id, agentName(block.input?.subagent_type));
       }
-      const text = describeToolUse(block.name, block.input).replace(options.root + path.sep, "");
+      const text = withoutRoot(describeToolUse(block.name, block.input), options.root);
       lines.push({ kind: "tool", agent, text });
     } else if (block.type === "text" && block.text && (options.verbose || !agent)) {
       const firstLine = block.text.trim().split("\n")[0] ?? "";
