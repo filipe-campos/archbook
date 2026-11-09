@@ -45,6 +45,12 @@ export function Timeline({
       <p className={styles.announcement} aria-live="polite">
         Step {index + 1} of {flow.steps.length}: {flow.steps[index]?.title}
       </p>
+      <div className={styles.track} aria-hidden>
+        <span
+          className={styles.trackFill}
+          style={{ width: `${((index + 1) / flow.steps.length) * 100}%` }}
+        />
+      </div>
       <div className={styles.controls}>
         <button type="button" className={styles.button} onClick={onRestart} title="Restart">
           <RotateCcw size={16} />
@@ -80,7 +86,11 @@ export function Timeline({
           <ChevronRight size={18} />
         </button>
         <span className={styles.counter}>
-          {index + 1} / {flow.steps.length}
+          <strong>{String(index + 1).padStart(2, "0")}</strong>
+          <span className={styles.counterTotal}>
+            {" "}
+            / {String(flow.steps.length).padStart(2, "0")}
+          </span>
         </span>
         <div className={styles.speeds} role="group" aria-label="Speed">
           {SPEEDS.map((value) => (
@@ -96,6 +106,7 @@ export function Timeline({
           ))}
         </div>
         <span className={styles.flowName} title={flow.summary}>
+          <span className={styles.flowEyebrow}>Replaying</span>
           {flow.name}
         </span>
         <button type="button" className={styles.button} onClick={onClose} title="Close flow (Esc)">

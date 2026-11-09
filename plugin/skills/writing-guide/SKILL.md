@@ -1,6 +1,6 @@
 ---
 name: writing-guide
-description: Tone, structure and language rules for every text field of archbook/architecture.json (node, edge and group descriptions, summaries, flow names, triggers and step text) for developers, stakeholders or mixed audiences, in any configured language. Use whenever you write or rewrite prose in an Archbook architecture document.
+description: Tone, structure, language and presentation rules for every text field of archbook/architecture.json (node, edge and group descriptions, summaries, names, labels, tech chips, flow names, triggers, step text and payloads) for developers, stakeholders or mixed audiences, in any configured language. Use whenever you write, rewrite or polish text in an Archbook architecture document.
 ---
 
 # Archbook writing guide
@@ -59,6 +59,28 @@ Markdown: short paragraphs of 2 to 4 sentences, or a bulleted list when listing 
 - `medium`: up to about 120 words.
 - `detailed`: up to about 250 words, bullets encouraged.
 - In-depth explanations (`/archbook:explain`): up to about 400 words with `###` sections.
+
+## Presentation in the viewer
+
+The viewer shows every short field in a fixed space. Text that fits reads as a finished product; text that overflows is cut with an ellipsis. Write to these limits:
+
+| Field                 | Where it appears                                          | Aim for                                  |
+| --------------------- | --------------------------------------------------------- | ---------------------------------------- |
+| Node `name`           | One line on a 240 px card, cut with an ellipsis           | Up to about 22 characters                |
+| Node `tech`           | Only the first 3 entries show as chips on the card        | 1 to 3 entries, most identifying first   |
+| Edge `label`          | Monospace pill on the edge, cut at about 200 px           | Up to about 24 characters                |
+| Group `name`          | Uppercase label at the top of the group box               | 1 to 3 words                             |
+| Flow `name`           | Flow picker, flow cards and the replay bar                | 1 to 3 words                             |
+| Step `title`          | Timeline cards, clamped to 2 lines of about 26 characters | Up to about 48 characters                |
+| Step `payload`        | Syntax-highlighted JSON in the side panel                 | Under about 12 lines when formatted      |
+| `project.description` | The overview headline, under the project name             | One crisp sentence, under about 20 words |
+
+- **Names.** Sentence case ("Payment worker", "Orders API"), except for brands and acronyms. Name what the thing is, not where it lives: "Orders API", not "orders-service-v2 (k8s)". Do not repeat the kind: "Postgres", not "Postgres database".
+- **Tech chips.** Short canonical product names with a major version when the code pins one: `PostgreSQL 16`, `Next.js 15`, `BullMQ`, `Redis 7`, `Stripe SDK`. No duplicates, no synonyms of the kind ("Database", "Queue"), and no language names such as `TypeScript` unless the language is what tells this component apart from its neighbours. Put the framework or product that identifies the component first.
+- **Edge labels.** The thing on the wire, not a sentence: `POST /orders`, `payment.process`, `SELECT orders`, `consume`, `webhook`. Use the same verb style for every edge of the same kind.
+- **Group names.** The boundary, short: "Backend services", "Data stores", "AWS us-east-1", "Vercel".
+- **Payloads.** A realistic example of what travels in that hop, trimmed to the fields that matter for the step. Reuse the same example values across the steps of one flow (`ord_42`, `cus_9`, `5998`), so a reader can follow one order from start to finish. Never include secrets or real personal data.
+- **Rhythm.** Siblings share a structure: step titles all start with the actor and a present-tense verb, node summaries all start with a verb, edge labels of one kind share a format. The same concept has one name everywhere ("order", not "order" in one place and "purchase" in another).
 
 ## Language
 

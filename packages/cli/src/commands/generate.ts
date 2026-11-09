@@ -1,7 +1,12 @@
 import { tmpdir } from "node:os";
 import path from "node:path";
 import pc from "picocolors";
-import { ArchitectureSchema, diffArchitecture, summarizeDiff } from "@archbook/schema";
+import {
+  ArchitectureSchema,
+  diffArchitecture,
+  summarizeDiff,
+  type Architecture,
+} from "@archbook/schema";
 import { UserError } from "../errors.js";
 import { projectCommand } from "../core/assets.js";
 import { historyLimit, loadConfig } from "../core/config.js";
@@ -11,7 +16,11 @@ import {
   runGenerationSession,
   type GenerationSession,
 } from "../core/generation/session.js";
-import { createStreamState, describeStreamMessage } from "../core/generation/stream.js";
+import {
+  GENERATION_PHASES,
+  createStreamState,
+  describeStreamMessage,
+} from "../core/generation/stream.js";
 import { createSnapshot, readSnapshot, restoreSnapshot } from "../core/history.js";
 import { relativePath, type ProjectPaths } from "../core/project.js";
 import { validateProject } from "../core/validation.js";
@@ -20,7 +29,12 @@ import { parseDocumentText, readTextIfExists, writeFileAtomic } from "../io/fs.j
 import { hasUncommittedChanges } from "../io/git.js";
 import type { Output } from "../io/output.js";
 import { command } from "../ui/format.js";
-import { formatProgressLine } from "../ui/generation.js";
+import {
+  formatGenerationPlan,
+  formatGenerationSummary,
+  formatPhaseDone,
+  formatProgressLine,
+} from "../ui/generation.js";
 import { formatValidation } from "../ui/validation.js";
 import { VERSION } from "../package.js";
 import { resolvePaths, type CommandContext } from "./context.js";
@@ -58,16 +72,50 @@ function checkPrerequisites(paths: ProjectPaths, options: GenerateOptions): void
   }
 }
 
+/** One live log per phase; a finished phase collapses into a single line with its duration. */
+function phasedProgress(output: Output, limit: number) {
+  const start = (title: string) => ({
+    title,
+    startedAt: Date.now(),
+    log: output.progress(title, limit),
+  });
+  let current = start("Reading the project");
+  const done = () =>
+    current.log.success(formatPhaseDone(current.title, Date.now() - current.startedAt));
+  return {
+    phase(title: string) {
+      done();
+      current = start(title);
+    },
+    message: (line: string) => current.log.message(line),
+    success: done,
+    error: (message: string) => current.log.error(message),
+  };
+}
+
 function reportDocument(
   output: Output,
   decision: Extract<GenerationDecision, { kind: "invalid" | "success" }>,
-  details: { file: string; changes: string; elapsedMs: number },
+  details: { file: string; document: Architecture; changes: string; elapsedMs: number },
 ): void {
   const { result, validation } = decision;
-  output.line(formatValidation(validation));
-  const cost = result.total_cost_usd !== undefined ? ` · $${result.total_cost_usd.toFixed(2)}` : "";
-  const minutes = ` · ${(details.elapsedMs / 60_000).toFixed(1)} min`;
-  output.info(`Changes: ${details.changes}${pc.dim(cost + minutes)}`);
+  if (validation.errors.length || validation.warnings.length) {
+    output.line(formatValidation(validation));
+  }
+  const { document } = details;
+  output.note(
+    formatGenerationSummary({
+      nodes: document.nodes.length,
+      edges: document.edges.length,
+      flows: document.flows.length,
+      groups: document.groups.length,
+      changes: details.changes,
+      elapsedMs: details.elapsedMs,
+      costUsd: result.total_cost_usd,
+      warnings: validation.warnings.length,
+    }),
+    decision.kind === "success" ? "Architecture documented" : "Architecture written, with errors",
+  );
   if (result.result) output.note(result.result.trim(), "Claude Code report");
   if (decision.kind === "invalid") {
     output.warn(
@@ -103,10 +151,11 @@ export async function generateCommand(
   const restored = `Restored ${file} to its state before generation.`;
 
   const invocation = generateInvocation(paths);
-  const progress = output.progress(
+  output.note(
+    formatGenerationPlan(GENERATION_PHASES),
     "Claude Code is documenting your architecture",
-    options.verbose ? 40 : 12,
   );
+  const progress = phasedProgress(output, options.verbose ? 40 : 12);
   const state = createStreamState();
   const startedAt = Date.now();
   let session: GenerationSession;
@@ -119,7 +168,10 @@ export async function generateCommand(
       signal: options.signal,
       onMessage: (message) => {
         const lines = describeStreamMessage(message, state, { ...options, root: paths.root });
-        for (const line of lines) progress.message(formatProgressLine(line));
+        for (const line of lines) {
+          if (line.kind === "phase") progress.phase(line.text);
+          else progress.message(formatProgressLine(line));
+        }
       },
       onFallback: () =>
         progress.message(
@@ -137,7 +189,8 @@ export async function generateCommand(
 
   const text = readTextIfExists(paths.architecture);
   const parsed = parseDocumentText(text);
-  const schemaValid = text !== undefined && ArchitectureSchema.safeParse(parsed).success;
+  const schema = text === undefined ? undefined : ArchitectureSchema.safeParse(parsed);
+  const schemaValid = schema?.success === true;
   const decision = evaluateGeneration({
     session,
     text,
@@ -154,7 +207,7 @@ export async function generateCommand(
     return OUTCOMES[decision.kind];
   }
 
-  progress.success("Claude Code finished.");
+  progress.success();
   if (decision.kind === "malformed") {
     // A file that does not even match the schema is worse than the previous one: put that back.
     const kept = path.join(tmpdir(), `archbook-failed-${Date.now()}.json`);
@@ -170,7 +223,12 @@ export async function generateCommand(
   }
 
   const changes = summarizeDiff(diffArchitecture(parseDocumentText(snapshot.content), parsed));
-  reportDocument(output, decision, { file, changes, elapsedMs: Date.now() - startedAt });
+  reportDocument(output, decision, {
+    file,
+    document: schema!.data!,
+    changes,
+    elapsedMs: Date.now() - startedAt,
+  });
   return OUTCOMES[decision.kind];
 }
 

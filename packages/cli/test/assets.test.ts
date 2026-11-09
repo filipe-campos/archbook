@@ -33,7 +33,7 @@ describe("plugin assets", () => {
     const names = (kind: string) =>
       [...new Set(assets.filter((a) => a.kind === kind).map((a) => a.name))].sort();
     expect(names("command")).toEqual(["add-flow", "explain", "generate", "sync"]);
-    expect(names("agent")).toEqual(["flow-tracer", "scanner", "validator", "writer"]);
+    expect(names("agent")).toEqual(["curator", "flow-tracer", "scanner", "validator", "writer"]);
     expect(names("skill")).toEqual(["detection-recipes", "schema", "writing-guide"]);
   });
 

@@ -3,7 +3,7 @@
   "version": "0.1",
   "project": {
     "name": "Shop Checkout",
-    "description": "A small e-commerce backend: a Next.js storefront, an Express orders API, BullMQ workers for payments and Redis Streams for notifications.",
+    "description": "Checkout for a small online store: orders are accepted in milliseconds, charged in the background and confirmed by Stripe webhooks.",
     "defaultBranch": "main"
   },
   "audience": "developers",
@@ -40,13 +40,13 @@
     {
       "id": "web-app",
       "kind": "app",
-      "name": "Web App",
+      "name": "Web app",
       "summary": "Next.js storefront that renders the catalog and the checkout page.",
       "description": "The checkout page posts a form to a **server action** (`placeOrder`), so card details never touch our servers: the Stripe card element tokenizes them in the browser and only a `paymentMethodId` is sent.\n\nThe server action generates an `idempotency-key` per submit, which protects against double clicks and retries.",
       "tech": [
         "Next.js",
         "React",
-        "TypeScript"
+        "Server Actions"
       ],
       "group": "vercel",
       "sources": [
@@ -82,10 +82,10 @@
       "summary": "Express service that owns orders: creates them, queues payments and handles Stripe webhooks.",
       "description": "The Orders API is the only writer of the `Order` table.\n\n- `POST /orders` validates the cart, stores the order as `PENDING_PAYMENT` and enqueues a `payment.process` job. It answers `202 Accepted` right away; payment happens asynchronously.\n- `POST /webhooks/stripe` verifies the Stripe signature, deduplicates events in Redis and confirms the order.\n\nThe webhook route uses `express.raw()` because signature verification needs the exact request bytes.",
       "tech": [
-        "Node.js",
         "Express",
         "Prisma",
-        "BullMQ"
+        "BullMQ",
+        "Node.js"
       ],
       "group": "backend",
       "sources": [
@@ -174,7 +174,7 @@
     {
       "id": "payments-queue",
       "kind": "queue",
-      "name": "Payments Queue",
+      "name": "Payments queue",
       "summary": "BullMQ queue of payment jobs, retried with exponential backoff.",
       "description": "Each job carries the order id, amount, currency and Stripe payment method. Jobs are retried up to 5 times with exponential backoff starting at 2 seconds.",
       "tech": [
@@ -196,13 +196,13 @@
     {
       "id": "payment-worker",
       "kind": "worker",
-      "name": "Payment Worker",
+      "name": "Payment worker",
       "summary": "Consumes payment jobs and creates Stripe PaymentIntents.",
       "description": "Runs up to 10 jobs concurrently. Uses `order-<id>` as the Stripe idempotency key, so a retried job never charges twice.\n\nThe worker only moves the order to `PAYMENT_PROCESSING`; the final confirmation comes from the Stripe webhook.",
       "tech": [
-        "Node.js",
         "BullMQ",
-        "Stripe SDK"
+        "Stripe SDK",
+        "Node.js"
       ],
       "group": "backend",
       "sources": [
@@ -219,13 +219,13 @@
     {
       "id": "notifications-worker",
       "kind": "worker",
-      "name": "Notifications Worker",
+      "name": "Notifications worker",
       "summary": "Reads domain events from a Redis stream and sends transactional emails.",
       "description": "Uses a Redis Streams consumer group (`notifications`), so events are acknowledged only after the email is handed to the provider.",
       "tech": [
-        "Node.js",
         "Redis Streams",
-        "Postmark"
+        "Postmark",
+        "Node.js"
       ],
       "group": "backend",
       "sources": [
@@ -265,7 +265,7 @@
     {
       "id": "email-service",
       "kind": "external",
-      "name": "Email Service",
+      "name": "Email service",
       "summary": "Postmark delivers transactional emails from templates.",
       "tech": [
         "Postmark"
@@ -324,7 +324,7 @@
       "from": "orders-api",
       "to": "postgres",
       "kind": "db",
-      "label": "orders",
+      "label": "write orders",
       "sources": [
         {
           "path": "services/orders-api/src/routes/orders.ts",
@@ -530,7 +530,7 @@
         },
         {
           "edge": "web-app-to-orders-api",
-          "title": "Server action calls POST /orders",
+          "title": "Web app calls POST /orders",
           "description": "The request carries a fresh `idempotency-key`, so a double click cannot create two orders.",
           "payload": {
             "method": "POST",
@@ -563,7 +563,7 @@
         },
         {
           "edge": "orders-api-to-postgres",
-          "title": "Order saved as PENDING_PAYMENT",
+          "title": "API saves the order as PENDING_PAYMENT",
           "payload": {
             "table": "Order",
             "insert": {
@@ -578,7 +578,7 @@
         },
         {
           "edge": "orders-api-to-payments-queue",
-          "title": "Payment job enqueued",
+          "title": "API enqueues the payment job",
           "description": "The API does not wait for the payment. BullMQ retries the job up to 5 times with exponential backoff.",
           "payload": {
             "name": "payment.process",
@@ -611,7 +611,7 @@
         },
         {
           "edge": "payments-queue-to-payment-worker",
-          "title": "Payment worker picks up the job",
+          "title": "Worker picks up the payment job",
           "payload": {
             "jobId": "1734",
             "name": "payment.process",
@@ -622,7 +622,7 @@
         },
         {
           "edge": "payment-worker-to-stripe",
-          "title": "Worker creates and confirms a PaymentIntent",
+          "title": "Worker charges the card on Stripe",
           "description": "`order-<id>` is sent as the Stripe idempotency key, so a retried job never charges twice. The result arrives later by webhook.",
           "payload": {
             "method": "POST",
@@ -646,13 +646,13 @@
     },
     {
       "id": "stripe-webhook",
-      "name": "Stripe webhook → order confirmed",
+      "name": "Payment confirmation",
       "summary": "Stripe reports a successful payment. The API verifies the event, confirms the order and publishes order.confirmed.",
       "trigger": "Stripe sends payment_intent.succeeded",
       "steps": [
         {
           "edge": "stripe-to-orders-api",
-          "title": "Stripe calls the webhook",
+          "title": "Stripe calls the payment webhook",
           "description": "The API verifies the `stripe-signature` header against the raw request body.",
           "payload": {
             "id": "evt_3Pq9",
@@ -673,7 +673,7 @@
         },
         {
           "edge": "orders-api-to-redis",
-          "title": "Event id deduplicated",
+          "title": "API deduplicates the event id",
           "description": "Stripe may deliver the same event more than once. A second delivery is acknowledged without side effects.",
           "payload": {
             "command": "SET",
@@ -689,7 +689,7 @@
         },
         {
           "edge": "orders-api-to-postgres",
-          "title": "Order marked CONFIRMED",
+          "title": "API marks the order CONFIRMED",
           "payload": {
             "table": "Order",
             "where": {
@@ -704,7 +704,7 @@
         },
         {
           "edge": "orders-api-to-notifications-worker",
-          "title": "order.confirmed published",
+          "title": "API publishes order.confirmed",
           "payload": {
             "stream": "events:orders",
             "fields": {
@@ -729,7 +729,7 @@
     },
     {
       "id": "order-confirmation-email",
-      "name": "Order confirmation email",
+      "name": "Confirmation email",
       "summary": "The notifications worker turns order.confirmed into a templated email for the customer.",
       "trigger": "An order.confirmed event lands on the events:orders stream",
       "steps": [
@@ -749,7 +749,7 @@
         },
         {
           "edge": "notifications-worker-to-postgres",
-          "title": "Worker loads the order and its items",
+          "title": "Worker loads the order and items",
           "payload": {
             "table": "Order",
             "where": {
@@ -763,7 +763,7 @@
         },
         {
           "edge": "notifications-worker-to-email-service",
-          "title": "Email sent with the order-confirmed template",
+          "title": "Worker sends the confirmation email",
           "description": "The stream entry is acknowledged (`XACK`) only after Postmark accepts the email, so a crash leads to a retry instead of a lost email.",
           "payload": {
             "From": "orders@shop.example",

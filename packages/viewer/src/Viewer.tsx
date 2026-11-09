@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { indexArchitecture, type Architecture, type ValidationIssue } from "@archbook/schema";
 import { Canvas, type CameraFocus } from "./components/canvas/Canvas";
+import { ReplayHint } from "./components/canvas/ReplayHint";
 import { DetailsPanel } from "./components/panel/DetailsPanel";
 import type { PanelActions } from "./components/panel/Panels";
 import { Timeline } from "./components/timeline/Timeline";
@@ -107,6 +108,7 @@ export function Viewer({ architecture, warnings, theme, onToggleTheme }: ViewerP
             onSelect={select}
             onClear={clear}
           />
+          {!flow && <ReplayHint flows={architecture.flows} onOpenFlow={openFlow} />}
           {flow && timing && (
             <Timeline
               flow={flow}

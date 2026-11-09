@@ -9,6 +9,9 @@
   inset: 0;
   display: grid;
   place-items: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.02em;
   color: var(--text-muted);
 }
 
@@ -16,33 +19,55 @@
 
 .node {
   --kind: var(--kind-service);
+  position: relative;
   width: 240px;
   height: 88px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 12px 14px;
+  padding: 12px 14px 11px;
   border-radius: var(--radius);
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-left: 4px solid var(--kind);
-  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(
+      120% 90% at 0% 0%,
+      color-mix(in srgb, var(--kind) 9%, transparent),
+      transparent 60%
+    ),
+    var(--surface);
+  box-shadow:
+    inset 0 1px 0 var(--highlight),
+    var(--shadow);
   transition:
-    opacity 250ms ease,
-    box-shadow 250ms ease,
-    border-color 250ms ease,
-    transform 250ms ease;
+    opacity 300ms var(--ease),
+    filter 300ms var(--ease),
+    box-shadow 300ms var(--ease),
+    border-color 300ms var(--ease),
+    transform 300ms var(--ease);
+}
+
+/* A short kind-colored line on the top edge identifies the kind at a glance. */
+.node::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 18px;
+  width: 44px;
+  height: 2px;
+  border-radius: 0 0 2px 2px;
+  background: var(--kind);
+  box-shadow: 0 0 12px var(--kind);
 }
 
 .node:hover {
-  border-color: var(--border-strong);
-  border-left-color: var(--kind);
+  border-color: color-mix(in srgb, var(--kind) 45%, var(--border));
+  transform: translateY(-1px);
 }
 
 .header {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
   min-width: 0;
 }
 
@@ -50,11 +75,14 @@
   flex: none;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   color: var(--kind);
-  background: color-mix(in srgb, var(--kind) 14%, transparent);
+  background: color-mix(in srgb, var(--kind) 13%, transparent);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--kind) 28%, transparent),
+    0 0 18px color-mix(in srgb, var(--kind) 18%, transparent);
 }
 
 .titles {
@@ -62,18 +90,21 @@
 }
 
 .name {
-  font-weight: 650;
+  font-weight: 620;
   font-size: 14.5px;
   line-height: 1.25;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
 .kindLabel {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  margin-top: 1px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 550;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-faint);
 }
@@ -87,12 +118,14 @@
 
 .chip {
   flex: none;
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
   line-height: 18px;
   padding: 0 6px;
-  border-radius: 4px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
   color: var(--text-muted);
-  background: var(--surface-2);
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
 }
 
 .handle {
@@ -101,27 +134,35 @@
 }
 
 .active {
-  border-color: var(--accent);
-  border-left-color: var(--kind);
+  border-color: color-mix(in srgb, var(--kind) 70%, transparent);
   box-shadow:
-    0 0 0 4px var(--accent-soft),
+    inset 0 1px 0 var(--highlight),
+    0 0 0 4px color-mix(in srgb, var(--kind) 16%, transparent),
+    0 0 42px color-mix(in srgb, var(--kind) 32%, transparent),
     var(--shadow-lg);
-  transform: scale(1.04);
+  transform: scale(1.045);
+}
+
+.active::before {
+  left: 0;
+  width: 100%;
+  border-radius: var(--radius) var(--radius) 0 0;
 }
 
 .visited {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-  border-left-color: var(--kind);
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
 }
 
 .dimmed {
-  opacity: 0.28;
+  opacity: 0.32;
+  filter: saturate(0.35);
 }
 
 .selected {
   border-color: var(--accent);
-  border-left-color: var(--kind);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  box-shadow:
+    inset 0 1px 0 var(--highlight),
+    var(--glow);
 }
 
 /* Group container */
@@ -129,20 +170,33 @@
 .group {
   width: 100%;
   height: 100%;
-  border-radius: 14px;
-  border: 1.5px dashed var(--border-strong);
-  background: color-mix(in srgb, var(--text) 2.5%, transparent);
-  transition: opacity 250ms ease;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--text) 3%, transparent),
+    color-mix(in srgb, var(--text) 1%, transparent)
+  );
+  box-shadow: inset 0 1px 0 var(--highlight);
+  transition: opacity 300ms var(--ease);
 }
 
 .groupLabel {
   position: absolute;
-  top: 10px;
+  top: 12px;
   left: 14px;
-  right: 14px;
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.05em;
+  max-width: calc(100% - 28px);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 9px 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-glass);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
   white-space: nowrap;
@@ -150,37 +204,69 @@
   text-overflow: ellipsis;
 }
 
+.groupLabel::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-gradient);
+}
+
 .groupDimmed {
-  opacity: 0.55;
+  opacity: 0.5;
 }
 
 /* Edges */
 
 .edge {
-  transition: opacity 250ms ease;
+  transition: opacity 300ms var(--ease);
 }
 
 .edge path.edgePath {
   stroke: var(--edge);
-  stroke-width: 1.6;
+  stroke-width: 1.5;
   fill: none;
   transition:
-    stroke 250ms ease,
-    stroke-width 250ms ease;
+    stroke 300ms var(--ease),
+    stroke-width 300ms var(--ease);
 }
 
 .edgeActive path.edgePath {
   stroke: var(--accent);
-  stroke-width: 3;
+  stroke-width: 2.6;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 70%, transparent));
 }
 
 .edgeVisited path.edgePath {
   stroke: var(--edge-visited);
-  stroke-width: 2;
+  stroke-width: 1.9;
 }
 
 .edgeDimmed {
-  opacity: 0.18;
+  opacity: 0.16;
+}
+
+/* Bright dashes that run along the active edge while a step plays. */
+.edgeCurrent {
+  fill: none;
+  stroke: var(--accent-2);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-dasharray: 2 14;
+  opacity: 0.9;
+  pointer-events: none;
+  animation: current 900ms linear infinite;
+}
+
+.edgeCurrentReverse {
+  animation-direction: reverse;
+}
+
+@keyframes current {
+  to {
+    stroke-dashoffset: -32;
+  }
 }
 
 .edgeLabel {
@@ -188,29 +274,44 @@
   pointer-events: all;
   max-width: 200px;
   margin: 0;
-  padding: 2px 7px;
+  padding: 2px 8px;
   border-radius: 999px;
-  font-size: 11.5px;
+  font-size: 11px;
   font-family: var(--font-mono);
   color: var(--text-muted);
-  background: var(--surface);
+  background: var(--surface-glass);
   border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   cursor: pointer;
-  transition: opacity 250ms ease;
+  transition:
+    opacity 300ms var(--ease),
+    color 300ms var(--ease),
+    border-color 300ms var(--ease);
+}
+
+.edgeLabel:hover {
+  color: var(--text);
+  border-color: var(--border-strong);
 }
 
 .edgeLabelActive {
-  color: var(--accent-text);
-  background: var(--accent);
-  border-color: var(--accent);
+  color: #fff;
+  background: var(--accent-gradient);
+  border-color: transparent;
+  box-shadow: 0 0 22px color-mix(in srgb, var(--accent) 55%, transparent);
   z-index: 10;
 }
 
+.edgeLabelActive:hover {
+  color: #fff;
+}
+
 .edgeLabelDimmed {
-  opacity: 0.25;
+  opacity: 0.22;
 }
 
 .arrow {
@@ -226,12 +327,13 @@
 }
 
 .particleGlow {
-  fill: var(--accent);
-  opacity: 0.25;
+  fill: var(--accent-2);
+  opacity: 0.45;
+  filter: blur(5px);
 }
 
 .particleCore {
-  fill: var(--accent);
-  stroke: var(--surface);
-  stroke-width: 2;
+  fill: #fff;
+  stroke: var(--accent);
+  stroke-width: 2.5;
 }

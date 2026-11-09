@@ -1,6 +1,6 @@
 ---
 name: dev-plugin
-description: How to work on plugin/, the Claude Code commands, agents and skills Archbook ships to users (generate, sync, add-flow, explain, scanner, flow-tracer, validator, writer, schema, writing-guide, detection-recipes). Use when editing those prompts, their allowed-tools, a detection recipe, or the marketplace manifest.
+description: How to work on plugin/, the Claude Code commands, agents and skills Archbook ships to users (generate, sync, add-flow, explain, scanner, flow-tracer, writer, curator, validator, schema, writing-guide, detection-recipes). Use when editing those prompts, their allowed-tools, a detection recipe, or the marketplace manifest.
 ---
 
 # Developing the plugin
@@ -12,8 +12,8 @@ description: How to work on plugin/, the Claude Code commands, agents and skills
 - `plugin/.claude-plugin/plugin.json`: manifest (`name: archbook`, version tied to the packages).
 - `.claude-plugin/marketplace.json`: lets people install the plugin from this repo (`source: ./plugin`).
 - `plugin/commands/`: `generate`, `sync`, `add-flow`, `explain`.
-- `plugin/agents/`: `scanner` and `flow-tracer` (read-only drafts), `validator` (fixes until `validate` is clean), `writer` (text fields only).
-- `plugin/skills/`: `schema` (spec of the document), `writing-guide` (tone of text fields), `detection-recipes` (`SKILL.md` index plus `recipes/*.md`).
+- `plugin/agents/`: `scanner` and `flow-tracer` (read-only drafts), `writer` (text fields only), `curator` (presentation pass on names, labels, tech chips, step titles and payloads, never structure), `validator` (fixes until `validate` is clean).
+- `plugin/skills/`: `schema` (spec of the document), `writing-guide` (tone of text fields and how they fit the viewer), `detection-recipes` (`SKILL.md` index plus `recipes/*.md`).
 - `packages/cli/plugin/` is a build copy. Never edit it.
 
 ## Rules that tests enforce

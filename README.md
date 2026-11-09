@@ -8,9 +8,7 @@ Archbook is the Storybook of architecture. It gives your project:
 - **An explanation of every component**, linked to the code that implements it.
 - **Flow replay**: pick a flow such as "Checkout" and watch the request travel through the system step by step, with the payload of each hop.
 
-<!-- Placeholder: replace with docs/assets/replay.gif, recorded from `pnpm dev:example`. -->
-
-![Archbook replaying the Checkout flow of the example project](docs/assets/replay.png)
+![Archbook replaying the Checkout flow of the example project](docs/assets/hero.png)
 
 ## Why
 
@@ -51,7 +49,7 @@ Inside Claude Code:
 
 | Command                            | What it does                                                                            |
 | ---------------------------------- | --------------------------------------------------------------------------------------- |
-| `/archbook-generate`               | Full generation: scanner, then one flow tracer per flow, then writer, then validator.   |
+| `/archbook-generate`               | Full generation: scanner, one flow tracer per flow, writer, curator, then validator.    |
 | `/archbook-add-flow <description>` | Traces one more flow and adds it without touching the rest.                             |
 | `/archbook-sync`                   | Finds what changed in the code since the last generation and proposes targeted updates. |
 | `/archbook-explain <node-id>`      | Reads a component's code and writes a deeper description.                               |

@@ -32,3 +32,7 @@ export function table(rows: string[][]): string {
 
 export const bullet = (text: string) => `  ${pc.dim("•")} ${text}`;
 export const command = (text: string) => pc.cyan(text);
+
+/** Commands in one aligned column, each followed by what it does. */
+export const commandList = (rows: Array<[string, string]>): string =>
+  table(rows.map(([text, description]) => [`  ${command(text)}`, pc.dim(description)]));

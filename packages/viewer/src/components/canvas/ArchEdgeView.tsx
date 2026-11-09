@@ -52,6 +52,13 @@ export const ArchEdgeView = memo(function ArchEdgeView(props: EdgeProps<CanvasEd
         />
       </g>
       {travel && (
+        <path
+          d={path}
+          className={cx(styles.edgeCurrent, travel.reverse && styles.edgeCurrentReverse)}
+          aria-hidden
+        />
+      )}
+      {travel && (
         <Particle
           key={travel.key}
           path={path}
@@ -101,8 +108,8 @@ function Particle({
 
   return (
     <g aria-hidden>
-      <circle r={9} className={styles.particleGlow} />
-      <circle r={5} className={styles.particleCore} />
+      <circle r={11} className={styles.particleGlow} />
+      <circle r={4.5} className={styles.particleCore} />
       <animateMotion
         ref={motion}
         begin="indefinite"
@@ -134,8 +141,8 @@ export function EdgeMarkers() {
             viewBox="0 0 10 10"
             refX="9"
             refY="5"
-            markerWidth="7"
-            markerHeight="7"
+            markerWidth="6"
+            markerHeight="6"
             orient="auto-start-reverse"
           >
             <path d="M 0 0 L 10 5 L 0 10 z" className={className} />

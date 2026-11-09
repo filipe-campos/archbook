@@ -18,7 +18,8 @@ import { GITIGNORE_LINES } from "../core/textBlock.js";
 import { INSTALL_HINT, claudeVersion } from "../io/claude.js";
 import { gitDefaultBranch, gitRemoteUrl } from "../io/git.js";
 import type { Prompter } from "../io/prompter.js";
-import { bullet, command } from "../ui/format.js";
+import { bullet, command, commandList } from "../ui/format.js";
+import { VERSION } from "../package.js";
 import type { CommandContext } from "./context.js";
 
 const LANGUAGES = [
@@ -44,7 +45,7 @@ export async function askQuestions(prompter: Prompter, root: string): Promise<In
     validate: (value) => (value.trim() || defaults.name ? undefined : "Enter a name"),
   });
   const description = await prompter.text({
-    message: "Short description (one sentence)",
+    message: "Describe it in one sentence",
     defaultValue: defaults.description,
     placeholder: defaults.description || "What does this system do?",
   });
@@ -85,19 +86,19 @@ export async function askQuestions(prompter: Prompter, root: string): Promise<In
   const flows = parseLines(
     await prompter.multiline({
       message:
-        "What are the 3 to 5 most important flows? One per line (press Enter twice to finish).",
+        "Which 3 to 5 flows matter most? They become replayable stories. One per line, Enter twice to finish.",
       placeholder: "checkout\nuser signup\nStripe webhook",
       defaultValue: "",
     }),
   );
   const externalContext = await prompter.multiline({
-    message: "Any external systems or infrastructure that do not appear in the code? (optional)",
+    message: "Anything the code does not show? External systems, infrastructure (optional)",
     placeholder: "e.g. Cloudflare in front of the API, a data warehouse fed nightly by Fivetran",
     defaultValue: "",
   });
   const ignore = (
     await prompter.text({
-      message: "Folders to ignore (comma-separated)",
+      message: "Folders to skip (comma-separated)",
       defaultValue: DEFAULT_IGNORE.join(", "),
     })
   )
@@ -106,7 +107,7 @@ export async function askQuestions(prompter: Prompter, root: string): Promise<In
     .filter(Boolean);
   const detectedRepo = gitRemoteUrl(root);
   const repoUrl = await prompter.text({
-    message: "Repository URL (to link components to their source files; optional)",
+    message: "Repository URL, so every component links to its code (optional)",
     defaultValue: detectedRepo ?? "",
     placeholder: detectedRepo ?? "https://github.com/owner/repo",
     validate: (value) =>
@@ -141,7 +142,9 @@ export async function initCommand(
 ): Promise<number> {
   const root = path.resolve(cwd);
   const paths = projectPaths(root);
-  output.intro(pc.bgMagenta(pc.white(" archbook init ")));
+  output.intro(
+    `${pc.bgMagenta(pc.white(pc.bold(" archbook init ")))}  ${pc.dim(`v${VERSION} · living architecture docs, written by Claude Code`)}`,
+  );
 
   const claude = claudeVersion();
   if (claude) output.success(`Claude Code found (${claude}).`);
@@ -216,18 +219,20 @@ export async function initCommand(
   let exitCode = 0;
   if (wantsGeneration) exitCode = await runGeneration();
 
-  output.outro(
-    [
-      "Next steps:",
-      wantsGeneration
-        ? ""
-        : `  ${command("npx archbook generate")}   generate the docs with Claude Code (or ${projectCommand("generate")} inside Claude Code)`,
-      `  ${command("npx archbook dev")}        open the viewer with live reload`,
-      `  ${command(projectCommand("add-flow"))} ${pc.dim("<flow>")}  document another flow; ${command(projectCommand("sync"))} after code changes`,
-      `  Edit ${command("archbook/architecture.json")} by hand any time; ${command("npx archbook validate")} checks it.`,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  );
+  const steps: Array<[string, string]> = [
+    ...(wantsGeneration
+      ? []
+      : ([
+          [
+            "npx archbook generate",
+            `write the docs (or ${projectCommand("generate")} in Claude Code)`,
+          ],
+        ] as Array<[string, string]>)),
+    ["npx archbook dev", "open the viewer with live reload"],
+    [`${projectCommand("add-flow")} <flow>`, "document one more flow"],
+    [projectCommand("sync"), "update the docs after code changes"],
+    ["npx archbook validate", "check hand edits to archbook/architecture.json"],
+  ];
+  output.outro(`${pc.bold("Next steps")}\n${commandList(steps)}`);
   return exitCode;
 }

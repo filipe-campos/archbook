@@ -152,9 +152,16 @@ export function Canvas({
             minZoom={0.1}
             maxZoom={2.5}
           >
-            <Background variant={BackgroundVariant.Dots} gap={22} size={1.3} />
+            <Background variant={BackgroundVariant.Dots} gap={24} size={1.4} />
             <Controls showInteractive={false} position="top-left" />
-            <MiniMap pannable zoomable nodeClassName={minimapClass} position="bottom-right" />
+            <MiniMap
+              pannable
+              zoomable
+              nodeClassName={minimapClass}
+              nodeBorderRadius={6}
+              style={{ width: 168, height: 108 }}
+              position="bottom-right"
+            />
           </ReactFlow>
         </HighlightContext.Provider>
       </CanvasActionsContext.Provider>

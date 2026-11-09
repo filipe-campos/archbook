@@ -35,7 +35,7 @@ export const ArchNodeView = memo(function ArchNodeView({ id, data }: NodeProps<A
       />
       <div className={styles.header}>
         <span className={styles.icon} aria-hidden>
-          <Icon size={18} strokeWidth={2.2} />
+          <Icon size={17} strokeWidth={2} />
         </span>
         <div className={styles.titles}>
           <div className={styles.name}>{data.node.name}</div>

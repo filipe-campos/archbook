@@ -39,6 +39,7 @@ describe("describeStreamMessage", () => {
       { root },
     );
     expect(started).toEqual([
+      expect.objectContaining({ kind: "phase", text: "Mapping components and connections" }),
       { kind: "tool", agent: undefined, text: "Starting archbook:scanner: map services" },
     ]);
     expect(state.agents.get("t1")).toBe("scanner");
@@ -55,6 +56,39 @@ describe("describeStreamMessage", () => {
       { kind: "tool", agent: "scanner", text: "Searching for express" },
     ]);
     expect(state.agents.get("t2")).toBe("subagent");
+  });
+
+  it("starts a phase when the session launches an agent or a phase subcommand", () => {
+    const state = createStreamState();
+    const phases = (content: Parameters<typeof assistant>[0], parent?: string): string[] =>
+      describeStreamMessage(assistant(content, parent), state, { root })
+        .filter((line) => line.kind === "phase")
+        .map((line) => line.text);
+    const agent = (id: string, type: string) =>
+      ({ type: "tool_use", id, name: "Agent", input: { subagent_type: type } }) as const;
+    const bash = (command: string) =>
+      ({ type: "tool_use", name: "Bash", input: { command } }) as const;
+
+    expect(phases([bash("npx archbook snapshot --op generate")])).toEqual(["Saving a snapshot"]);
+    expect(phases([agent("a", "archbook-scanner")])).toEqual([
+      "Mapping components and connections",
+    ]);
+    expect(state.agents.get("a")).toBe("scanner");
+    expect(
+      phases([agent("b", "archbook:flow-tracer"), agent("c", "archbook:flow-tracer")]),
+    ).toEqual(["Tracing flows"]);
+    expect(phases([bash("archbook merge --draft archbook/.drafts/flow-checkout.json")])).toEqual([
+      "Merging the drafts",
+    ]);
+    expect(phases([agent("d", "archbook:writer")])).toEqual(["Writing the descriptions"]);
+    expect(phases([bash("archbook validate")], "d")).toEqual([]);
+    expect(phases([agent("e", "archbook:curator")])).toEqual(["Polishing the presentation"]);
+    expect(phases([agent("f", "archbook:validator"), bash("archbook validate")])).toEqual([
+      "Checking every reference against the code",
+    ]);
+    expect(phases([agent("g", "general-purpose"), bash("archbook format"), bash("ls")])).toEqual(
+      [],
+    );
   });
 
   it("shows the first line of text, and the text of agents only when verbose", () => {

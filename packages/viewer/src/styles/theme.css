@@ -1,30 +1,40 @@
 :root {
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
   --font-mono:
-    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    "JetBrains Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
 
-  --bg: #f5f6f8;
+  --bg: #f6f7fb;
+  --bg-glow-1: rgb(124 92 255 / 10%);
+  --bg-glow-2: rgb(34 211 238 / 8%);
   --surface: #ffffff;
-  --surface-2: #f0f2f5;
-  --surface-3: #e7eaef;
-  --border: #dfe3e9;
-  --border-strong: #c9ced7;
-  --text: #14161b;
-  --text-muted: #5c6370;
-  --text-faint: #8b929e;
-  --accent: #5b4cf5;
-  --accent-strong: #4637e0;
-  --accent-soft: rgb(91 76 245 / 12%);
+  --surface-glass: rgb(255 255 255 / 72%);
+  --surface-2: #f2f3f8;
+  --surface-3: #e8eaf2;
+  --border: rgb(15 18 40 / 9%);
+  --border-strong: rgb(15 18 40 / 17%);
+  --highlight: rgb(255 255 255 / 90%);
+  --text: #0c0e1a;
+  --text-muted: #555b70;
+  --text-faint: #8a90a3;
+  --accent: #6d4aff;
+  --accent-strong: #5532f0;
+  --accent-2: #0ea5e9;
+  --accent-soft: rgb(109 74 255 / 11%);
   --accent-text: #ffffff;
-  --edge: #9ba2ae;
-  --edge-visited: #7d72f0;
-  --danger: #c8321f;
-  --danger-soft: rgb(200 50 31 / 10%);
+  --accent-gradient: linear-gradient(120deg, #7c5cff 0%, #5b6cff 45%, #22b8e6 100%);
+  --glow: 0 0 0 1px rgb(109 74 255 / 22%), 0 8px 28px rgb(109 74 255 / 22%);
+  --edge: #a3a8b8;
+  --edge-visited: #8b74ff;
+  --danger: #d0342c;
+  --danger-soft: rgb(208 52 44 / 10%);
   --warning: #a35a00;
-  --warning-soft: rgb(214 130 0 / 13%);
-  --shadow: 0 1px 2px rgb(16 24 40 / 6%), 0 1px 3px rgb(16 24 40 / 8%);
-  --shadow-lg: 0 12px 32px rgb(16 24 40 / 14%);
+  --warning-soft: rgb(214 130 0 / 12%);
+  --shadow: 0 1px 2px rgb(15 18 40 / 5%), 0 2px 8px rgb(15 18 40 / 5%);
+  --shadow-lg: 0 2px 6px rgb(15 18 40 / 6%), 0 18px 48px rgb(15 18 40 / 12%);
+  --dot: rgb(15 18 40 / 13%);
 
   --kind-app: #2f6fea;
   --kind-service: #7a4ff0;
@@ -41,49 +51,58 @@
   --json-number: #b4530a;
   --json-literal: #2f6fea;
 
-  --radius: 10px;
-  --radius-sm: 6px;
-  --topbar-height: 56px;
-  --panel-width: 400px;
+  --radius: 14px;
+  --radius-sm: 9px;
+  --topbar-height: 60px;
+  --panel-width: 420px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 [data-theme="dark"] {
-  --bg: #0e1014;
-  --surface: #161920;
-  --surface-2: #1d2129;
-  --surface-3: #262b35;
-  --border: #2a2f3a;
-  --border-strong: #3a404d;
-  --text: #e8eaee;
-  --text-muted: #a0a7b4;
-  --text-faint: #6f7684;
-  --accent: #8d80ff;
-  --accent-strong: #a69cff;
-  --accent-soft: rgb(141 128 255 / 16%);
-  --accent-text: #0e1014;
-  --edge: #565d6b;
-  --edge-visited: #8d80ff;
+  --bg: #07080d;
+  --bg-glow-1: rgb(124 92 255 / 16%);
+  --bg-glow-2: rgb(34 211 238 / 9%);
+  --surface: #0f111a;
+  --surface-glass: rgb(17 19 30 / 70%);
+  --surface-2: #161927;
+  --surface-3: #1f2335;
+  --border: rgb(255 255 255 / 8%);
+  --border-strong: rgb(255 255 255 / 15%);
+  --highlight: rgb(255 255 255 / 6%);
+  --text: #eceefb;
+  --text-muted: #a2a8c3;
+  --text-faint: #6c7290;
+  --accent: #9b85ff;
+  --accent-strong: #b6a6ff;
+  --accent-2: #5ed8f5;
+  --accent-soft: rgb(155 133 255 / 15%);
+  --accent-text: #0b0a1a;
+  --accent-gradient: linear-gradient(120deg, #a78bfa 0%, #818cf8 45%, #5ed8f5 100%);
+  --glow: 0 0 0 1px rgb(155 133 255 / 35%), 0 10px 36px rgb(124 92 255 / 30%);
+  --edge: #3d4258;
+  --edge-visited: #8f7cff;
   --danger: #ff7a66;
   --danger-soft: rgb(255 122 102 / 12%);
   --warning: #f0b45b;
   --warning-soft: rgb(240 180 91 / 12%);
-  --shadow: 0 1px 2px rgb(0 0 0 / 40%);
-  --shadow-lg: 0 12px 32px rgb(0 0 0 / 50%);
+  --shadow: 0 1px 2px rgb(0 0 0 / 45%), 0 4px 14px rgb(0 0 0 / 25%);
+  --shadow-lg: 0 2px 8px rgb(0 0 0 / 40%), 0 24px 60px rgb(0 0 0 / 55%);
+  --dot: rgb(255 255 255 / 7%);
 
-  --kind-app: #5b93ff;
-  --kind-service: #a184ff;
-  --kind-worker: #f0b13c;
-  --kind-database: #34c48f;
-  --kind-cache: #ff6f62;
-  --kind-queue: #ff9447;
-  --kind-storage: #2ec5d1;
-  --kind-external: #8e9ab0;
-  --kind-actor: #f06bbd;
+  --kind-app: #6ea0ff;
+  --kind-service: #a98bff;
+  --kind-worker: #f5b84a;
+  --kind-database: #3fd39b;
+  --kind-cache: #ff7a6e;
+  --kind-queue: #ff9a52;
+  --kind-storage: #3bd0dc;
+  --kind-external: #96a2bb;
+  --kind-actor: #f47ac6;
 
   --json-key: #c3a6ff;
-  --json-string: #7fd8a8;
-  --json-number: #ffb370;
-  --json-literal: #7fb0ff;
+  --json-string: #7fe0b0;
+  --json-number: #ffb877;
+  --json-literal: #84b6ff;
 }
 
 *,
@@ -103,9 +122,15 @@ body {
   font-family: var(--font-sans);
   font-size: 15px;
   line-height: 1.5;
+  font-feature-settings: "cv11", "ss01", "ss03";
   color: var(--text);
   background: var(--bg);
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: var(--accent-soft);
 }
 
 button,
@@ -125,9 +150,10 @@ a {
 
 code {
   font-family: var(--font-mono);
-  font-size: 0.88em;
-  padding: 0.1em 0.35em;
-  border-radius: 4px;
+  font-size: 0.86em;
+  padding: 0.12em 0.4em;
+  border-radius: 5px;
+  border: 1px solid var(--border);
   background: var(--surface-2);
 }
 
@@ -136,12 +162,20 @@ code {
   outline-offset: 2px;
 }
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
 .react-flow {
-  --xy-background-color: var(--bg);
-  --xy-minimap-background-color: var(--surface);
-  --xy-controls-button-background-color: var(--surface);
+  --xy-background-color: transparent;
+  --xy-background-pattern-color: var(--dot);
+  --xy-minimap-background-color: var(--surface-glass);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--bg) 55%, transparent);
+  --xy-controls-button-background-color: var(--surface-glass);
   --xy-controls-button-background-color-hover: var(--surface-2);
-  --xy-controls-button-color: var(--text);
+  --xy-controls-button-color: var(--text-muted);
+  --xy-controls-button-color-hover: var(--text);
   --xy-controls-button-border-color: var(--border);
   --xy-edge-label-background-color: var(--surface);
 }
@@ -150,25 +184,49 @@ code {
   cursor: pointer;
 }
 
+/* The group card draws its own frame; React Flow's default group box would cover it. */
+.react-flow__node-group {
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  background: transparent;
+  box-shadow: none;
+}
+
 .react-flow__minimap {
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   overflow: hidden;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
 }
 
 .react-flow__controls {
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   overflow: hidden;
   box-shadow: var(--shadow);
+  backdrop-filter: blur(14px);
+}
+
+.react-flow__controls-button {
+  width: 30px;
+  height: 30px;
+  border-bottom: 1px solid var(--border);
+}
+
+.react-flow__controls-button:last-child {
+  border-bottom: 0;
 }
 
 .react-flow__attribution {
   background: transparent;
+  opacity: 0.5;
 }
 
 .minimap-group {
   fill: var(--surface-3);
-  opacity: 0.6;
+  opacity: 0.5;
 }
 .minimap-app {
   fill: var(--kind-app);
@@ -203,6 +261,7 @@ code {
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
 }

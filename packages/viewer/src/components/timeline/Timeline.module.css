@@ -1,8 +1,44 @@
 .timeline {
+  position: relative;
+  z-index: 6;
   flex: none;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
-  padding: 10px 16px 14px;
+  margin: 0 14px 14px;
+  padding: 12px 14px 10px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface-glass);
+  backdrop-filter: blur(22px) saturate(1.4);
+  box-shadow:
+    inset 0 1px 0 var(--highlight),
+    var(--shadow-lg);
+  animation: dock 420ms var(--ease) both;
+}
+
+@keyframes dock {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.track {
+  position: absolute;
+  top: -1px;
+  left: 18px;
+  right: 18px;
+  height: 2px;
+  border-radius: 2px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.trackFill {
+  display: block;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent-gradient);
+  box-shadow: 0 0 12px rgb(124 92 255 / 60%);
+  transition: width 500ms var(--ease);
 }
 
 .controls {
@@ -18,56 +54,70 @@
   width: 34px;
   height: 34px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
-  color: var(--text);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
+  color: var(--text-muted);
+  transition:
+    color 200ms var(--ease),
+    border-color 200ms var(--ease);
 }
 
 .button:hover:not(:disabled) {
-  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border-strong);
 }
 
 .button:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: default;
 }
 
 .play {
   width: 42px;
   height: 42px;
+  margin: 0 2px;
   border-radius: 50%;
   border: 0;
-  color: var(--accent-text);
-  background: var(--accent);
-  box-shadow: 0 2px 10px var(--accent-soft);
+  color: #fff;
+  background: var(--accent-gradient);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 30%),
+    0 0 24px rgb(124 92 255 / 45%);
 }
 
 .play:hover:not(:disabled) {
-  background: var(--accent-strong);
+  color: #fff;
+  filter: brightness(1.08);
 }
 
 .counter {
-  margin: 0 8px;
-  font-size: 14px;
+  margin: 0 10px;
+  font-family: var(--font-mono);
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
+  color: var(--text);
+}
+
+.counterTotal {
+  color: var(--text-faint);
 }
 
 .speeds {
   display: inline-flex;
-  padding: 2px;
+  padding: 3px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-2) 70%, transparent);
 }
 
 .speed {
   padding: 3px 9px;
   border: 0;
-  border-radius: 4px;
+  border-radius: 7px;
   background: transparent;
-  font-size: 13px;
-  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-faint);
 }
 
 .speedActive {
@@ -78,10 +128,24 @@
 
 .flowName {
   margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding-right: 4px;
   font-weight: 650;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.flowEyebrow {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 550;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--accent);
 }
 
 .steps {
@@ -90,25 +154,27 @@
   overflow-x: auto;
   padding: 2px 2px 6px;
   scroll-behavior: smooth;
-  scrollbar-width: thin;
+  mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent);
+  scroll-padding-inline: 14px;
 }
 
 .step {
   position: relative;
   flex: none;
-  width: 196px;
-  min-height: 66px;
+  width: 200px;
+  min-height: 64px;
   display: flex;
-  gap: 8px;
-  padding: 8px 10px 10px;
+  gap: 9px;
+  padding: 9px 11px 11px 9px;
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 60%, transparent);
   text-align: left;
   overflow: hidden;
   transition:
-    border-color 200ms ease,
-    background 200ms ease;
+    border-color 250ms var(--ease),
+    background 250ms var(--ease),
+    box-shadow 250ms var(--ease);
 }
 
 .step:hover {
@@ -116,12 +182,20 @@
 }
 
 .stepDone {
-  background: var(--surface-2);
+  color: var(--text-muted);
 }
 
 .stepActive {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: transparent;
+  background:
+    linear-gradient(
+        color-mix(in srgb, var(--surface) 88%, var(--accent)),
+        color-mix(in srgb, var(--surface) 88%, var(--accent))
+      )
+      padding-box,
+    var(--accent-gradient) border-box;
+  box-shadow: 0 6px 24px rgb(124 92 255 / 22%);
+  color: var(--text);
 }
 
 .number {
@@ -130,16 +204,26 @@
   place-items: center;
   width: 22px;
   height: 22px;
-  border-radius: 50%;
-  font-size: 12px;
-  font-weight: 700;
-  background: var(--surface-3);
-  color: var(--text-muted);
+  border-radius: 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-faint);
+}
+
+.stepDone .number {
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: var(--accent-soft);
+  color: var(--accent);
 }
 
 .stepActive .number {
-  background: var(--accent);
-  color: var(--accent-text);
+  border-color: transparent;
+  background: var(--accent-gradient);
+  color: #fff;
+  box-shadow: 0 0 14px rgb(124 92 255 / 55%);
 }
 
 .stepText {
@@ -148,6 +232,7 @@
 
 .stepTitle {
   font-size: 13px;
+  font-weight: 500;
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -158,10 +243,11 @@
 .stepTags {
   display: flex;
   gap: 6px;
-  margin-top: 4px;
-  font-size: 11px;
-  font-weight: 650;
-  color: var(--accent-strong);
+  margin-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 550;
+  color: var(--accent);
 }
 
 .stepTags span {
@@ -174,9 +260,9 @@
   position: absolute;
   left: 0;
   bottom: 0;
-  height: 3px;
+  height: 2px;
   width: 100%;
-  background: var(--accent);
+  background: var(--accent-gradient);
   transform-origin: left;
   animation-name: fill;
   animation-timing-function: linear;

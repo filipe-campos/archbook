@@ -12,7 +12,14 @@ import { detectStack, projectDefaults } from "../src/core/detect.js";
 import { loadPackageRules, recipesDir } from "../src/core/recipes.js";
 import { normalizeRemoteUrl } from "../src/io/git.js";
 import { removeAppendedText, textToAppend } from "../src/core/textBlock.js";
-import { relativeTime, table } from "../src/ui/format.js";
+import { stripVTControlCharacters } from "node:util";
+import { GENERATION_PHASES } from "../src/core/generation/stream.js";
+import { commandList, relativeTime, table } from "../src/ui/format.js";
+import {
+  formatElapsed,
+  formatGenerationPlan,
+  formatGenerationSummary,
+} from "../src/ui/generation.js";
 import { repoRoot, tempProject } from "./helpers.js";
 
 describe("textToAppend / removeAppendedText", () => {
@@ -104,6 +111,45 @@ describe("ui helpers", () => {
         ["ccc", "d", "e"],
       ]),
     ).toBe("a    bb  c\nccc  d   e");
+  });
+
+  it("aligns commands and their descriptions", () => {
+    expect(
+      stripVTControlCharacters(
+        commandList([
+          ["npx archbook dev", "open the viewer"],
+          ["/archbook-sync", "update the docs"],
+        ]),
+      ),
+    ).toBe("  npx archbook dev  open the viewer\n  /archbook-sync    update the docs");
+  });
+
+  it.each([
+    [0, "0s"],
+    [42_400, "42s"],
+    [185_000, "3m 05s"],
+    [3_720_000, "1h 02m"],
+  ])("formats %d ms as %s", (ms, expected) => {
+    expect(formatElapsed(ms)).toBe(expected);
+  });
+
+  it("lists the generation passes without the bookkeeping ones", () => {
+    const plan = stripVTControlCharacters(formatGenerationPlan(GENERATION_PHASES));
+    expect(plan).toMatch(/^1 {2}Mapping components and connections\n2 {2}Tracing flows/);
+    expect(plan).not.toMatch(/snapshot\n|Merging/);
+    expect(plan).toMatch(/archbook undo/);
+  });
+
+  it("summarizes a generation, with warnings only when there are some", () => {
+    const base = { nodes: 9, edges: 12, flows: 3, groups: 2, changes: "+9 nodes", elapsedMs: 0 };
+    const text = stripVTControlCharacters(
+      formatGenerationSummary({ ...base, costUsd: 1.5, warnings: 2 }),
+    );
+    expect(text).toMatch(/^9 components {2}· {2}12 connections {2}· {2}3 flows {2}· {2}2 groups/);
+    expect(text).toMatch(/Time {6}0s · \$1\.50\nWarnings {2}2$/);
+    expect(stripVTControlCharacters(formatGenerationSummary({ ...base, warnings: 0 }))).toMatch(
+      /Time {5}0s$/,
+    );
   });
 });
 

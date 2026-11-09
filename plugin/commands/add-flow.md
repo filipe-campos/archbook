@@ -32,7 +32,8 @@ Trace this flow through the real code and add it to `archbook/architecture.json`
    - Write it to `archbook/.drafts/flow-<flow id>.json` and run `npx archbook merge --draft archbook/.drafts/flow-<flow id>.json`. The merge adds nodes whose id is new, reuses an existing edge with the same `from`, `to` and `kind`, gives a clashing edge id a numeric suffix, points the steps at the result, and replaces the flow with the same id or appends it.
    - Its JSON report lists what was `added`, `reused`, `renamed` and `replaced`. When `written` is `false`, the result failed the schema and nothing changed: fix the draft and run the command again.
 8. Launch `archbook:writer`. Its prompt: `audience`, `language`, `detailLevel`, the flow id, the ids of the nodes and edges the merge added, and the tracer's notes, with the instruction to touch nothing else.
-9. Launch `archbook:validator`, then run `npx archbook validate` yourself as the final check.
+9. Launch `archbook:curator` with `audience`, `language`, `detailLevel`, the flow id and the ids of the nodes and edges the merge added, with the instruction to match the names, label formats and tech chips of the existing elements and to touch nothing else.
+10. Launch `archbook:validator`, then run `npx archbook validate` yourself as the final check.
 
 ## Report
 

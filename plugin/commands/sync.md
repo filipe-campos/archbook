@@ -51,7 +51,8 @@ Build the change list grouped as **Add**, **Update** and **Remove**. Each item n
 2. Apply the approved updates and removals with targeted Edit calls. Approved additions from scanner or tracer output go through the CLI: write a draft with only those elements to `archbook/.drafts/<name>.json` (`{ groups, nodes, edges }` for the scanner, the tracer's `{ flow, newEdges, newNodes }` as is) and run `npx archbook merge --draft archbook/.drafts/<name>.json`. It adds only ids that are new, reuses an existing edge with the same `from`, `to` and `kind`, points flow steps at the result and replaces a re-traced flow with the same id. When its report says `written: false`, fix the draft and run it again.
 3. Set `generatedAt` to the `Time:` value and `generatedBy` to the `Generated-By:` value.
 4. Launch `archbook:writer` for the added elements and those whose behavior changed. Its prompt: `audience`, `language`, `detailLevel`, their ids, and the evidence you collected for each.
-5. Launch `archbook:validator`, then run `npx archbook validate` yourself as the final check.
+5. Launch `archbook:curator` with `audience`, `language`, `detailLevel` and the same ids, plus the ids of their siblings (the other nodes in their groups, the other steps of their flows), so names, labels, tech chips and step titles stay consistent with the rest of the document.
+6. Launch `archbook:validator`, then run `npx archbook validate` yourself as the final check.
 
 ## 6. Report
 

@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "dev:example": "pnpm --filter @archbook/viewer dev"
+    "dev:example": "pnpm --filter @archbook/viewer dev",
+    "readme:image": "node scripts/readme-image.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

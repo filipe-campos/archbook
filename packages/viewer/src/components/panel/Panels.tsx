@@ -61,8 +61,11 @@ export function OverviewPanel({
   const kinds = [...new Set(architecture.nodes.map((node) => node.kind))] as NodeKind[];
   return (
     <>
-      <div className={styles.eyebrow}>Architecture</div>
-      <h2 className={styles.title}>{architecture.project.name}</h2>
+      <div className={styles.eyebrow}>
+        <span className={styles.liveDot} aria-hidden />
+        Architecture
+      </div>
+      <h2 className={`${styles.title} ${styles.heroTitle}`}>{architecture.project.name}</h2>
       {architecture.project.description && (
         <p className={styles.summary}>{architecture.project.description}</p>
       )}
@@ -84,14 +87,16 @@ export function OverviewPanel({
                   className={styles.flowCard}
                   onClick={() => actions.openFlow(flow.id)}
                 >
-                  <div className={styles.flowCardTitle}>
-                    <Play size={15} />
-                    {flow.name}
-                    <span className={styles.badge} style={{ marginLeft: "auto" }}>
-                      {flow.steps.length} steps
+                  <span className={styles.flowCardPlay} aria-hidden>
+                    <Play size={12} fill="currentColor" />
+                  </span>
+                  <span className={styles.flowCardBody}>
+                    <span className={styles.flowCardTitle}>
+                      {flow.name}
+                      <span className={styles.flowCardSteps}>{flow.steps.length} steps</span>
                     </span>
-                  </div>
-                  <div className={styles.flowCardSummary}>{flow.summary}</div>
+                    <span className={styles.flowCardSummary}>{flow.summary}</span>
+                  </span>
                 </button>
               </li>
             ))}
@@ -132,7 +137,7 @@ export function OverviewPanel({
       )}
 
       {architecture.generatedAt && (
-        <p className={styles.empty} style={{ marginTop: 24, fontSize: 12.5 }}>
+        <p className={styles.generated}>
           Generated {new Date(architecture.generatedAt).toLocaleString()}
           {architecture.generatedBy ? ` by ${architecture.generatedBy}` : ""}
         </p>
@@ -318,6 +323,14 @@ export function StepPanel({
     <>
       <div className={`${styles.eyebrow} ${styles.eyebrowText}`}>
         {flow.name} · Step {stepIndex + 1} of {flow.steps.length}
+      </div>
+      <div className={styles.stepMeter} aria-hidden>
+        {flow.steps.map((_, i) => (
+          <span
+            key={i}
+            className={i < stepIndex ? styles.meterDone : i === stepIndex ? styles.meterActive : ""}
+          />
+        ))}
       </div>
       <h2 className={styles.title}>{step.title}</h2>
       <div className={styles.route}>

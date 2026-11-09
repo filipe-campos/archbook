@@ -34,12 +34,15 @@ export function TopBar({
       <div className={styles.brand}>
         <Logo />
         <span className={styles.project}>{projectName}</span>
+        <span className={styles.divider} aria-hidden />
         <span className={styles.product}>Archbook</span>
       </div>
 
       {flows.length > 0 && (
-        <label className={styles.field} title="Replay a flow">
-          <Play size={15} />
+        <label className={cx(styles.field, styles.flowField)} title="Replay a flow">
+          <span className={styles.flowIcon}>
+            <Play size={11} fill="currentColor" />
+          </span>
           <select
             className={styles.select}
             value={activeFlowId ?? ""}
@@ -64,7 +67,7 @@ export function TopBar({
         onClick={onToggleTheme}
         title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
       >
-        {theme === "dark" ? <Sun size={17} /> : <Moon size={17} />}
+        {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
       </button>
     </header>
   );
@@ -104,7 +107,7 @@ function SearchBox({ nodes, onPick }: { nodes: ArchNode[]; onPick: (id: string) 
   return (
     <div className={styles.search}>
       <label className={styles.field}>
-        <Search size={15} />
+        <Search size={15} className={styles.searchIcon} />
         <input
           ref={input}
           className={styles.searchInput}
@@ -163,7 +166,9 @@ function SearchBox({ nodes, onPick }: { nodes: ArchNode[]; onPick: (id: string) 
               onClick={() => pick(node)}
               onMouseEnter={() => setActive(index)}
             >
-              <Icon size={17} className={styles.resultIcon} aria-hidden />
+              <span className={styles.resultIcon} aria-hidden>
+                <Icon size={15} />
+              </span>
               <span className={styles.resultText}>
                 <span className={styles.resultName}>{node.name}</span>
                 <span className={styles.resultMeta}>{[kind.label, ...node.tech].join(" · ")}</span>
@@ -178,15 +183,17 @@ function SearchBox({ nodes, onPick }: { nodes: ArchNode[]; onPick: (id: string) 
 
 function Logo() {
   return (
-    <svg className={styles.logo} width="26" height="26" viewBox="0 0 32 32" aria-hidden>
-      <rect x="3" y="3" width="11" height="11" rx="3" fill="currentColor" />
-      <rect x="18" y="18" width="11" height="11" rx="3" fill="currentColor" opacity="0.55" />
-      <path
-        d="M14 8.5h4a3.5 3.5 0 0 1 3.5 3.5v6"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        fill="none"
-      />
-    </svg>
+    <span className={styles.logoTile} aria-hidden>
+      <svg className={styles.logo} width="18" height="18" viewBox="0 0 32 32">
+        <rect x="3" y="3" width="11" height="11" rx="3" fill="currentColor" />
+        <rect x="18" y="18" width="11" height="11" rx="3" fill="currentColor" opacity="0.6" />
+        <path
+          d="M14 8.5h4a3.5 3.5 0 0 1 3.5 3.5v6"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          fill="none"
+        />
+      </svg>
+    </span>
   );
 }

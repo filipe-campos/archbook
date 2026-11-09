@@ -50,11 +50,15 @@ You decide what goes into the document; the CLI does the merging. Write each dra
 
 Launch `archbook:writer`. Its prompt: `audience`, `language`, `detailLevel`; the ids of all groups, nodes, edges and flows; the scanner's and tracers' notes; and, for ids that existed before, their previous `summary` and `description` so it keeps what is still accurate. It edits the file in place.
 
-## 7. Validate
+## 7. Polish the presentation
+
+Launch `archbook:curator`. Its prompt: `audience`, `language`, `detailLevel` and "all" as the ids, so it polishes names, labels, tech chips, group names, flow names, step titles and payloads across the whole document. It edits the file in place. Mention in the report anything it left alone for lack of facts.
+
+## 8. Validate
 
 Launch `archbook:validator`. If it reports errors it could not fix, fix the ones you have evidence for and launch it once more. Then run `npx archbook validate` yourself as the final check.
 
-## 8. Report
+## 9. Report
 
 Keep it short:
 

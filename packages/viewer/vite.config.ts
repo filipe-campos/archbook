@@ -26,6 +26,8 @@ export default defineConfig({
   },
   build: {
     outDir: "dist",
+    // The CSP has no `data:` font source, so small font subsets must stay files.
+    assetsInlineLimit: (file) => (/\.woff2?$/.test(file) ? false : undefined),
     // The only chunk above Vite's 500 kB default is ELK's single-thread fallback, which loads
     // only where the layout worker cannot start.
     chunkSizeWarningLimit: 1464,

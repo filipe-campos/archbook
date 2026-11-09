@@ -54,13 +54,20 @@ describe.skipIf(process.platform === "win32")("generate", () => {
     expect(readFileSync(paths.architecture, "utf8")).toBe(minimalDocument(["api", "worker"]));
     expect(output.events).toEqual(
       expect.arrayContaining([
-        { kind: "progress", text: "Claude Code is documenting your architecture" },
+        expect.objectContaining({
+          kind: "note",
+          title: "Claude Code is documenting your architecture",
+        }),
+        { kind: "progress", text: "Reading the project" },
         { kind: "progress.message", text: "Reading src/server.ts" },
-        { kind: "progress.success", text: "Claude Code finished." },
+        { kind: "progress.success", text: expect.stringMatching(/^Reading the project {2}\d+s$/) },
         { kind: "note", text: "Documented 2 nodes.", title: "Claude Code report" },
       ]),
     );
-    expect(output.text()).toMatch(/Changes: \+1 node, \+1 edge · \$0\.42 · 0\.\d min/);
+    const summary = output.events.find((event) => event.title === "Architecture documented");
+    expect(summary?.text).toMatch(/components {2}· {2}2 connections/);
+    expect(summary?.text).toMatch(/Changes {2}\+1 node, \+1 edge/);
+    expect(summary?.text).toMatch(/Time {5}\d+s · \$0\.42/);
     expect(output.events.at(-1)).toMatchObject({ kind: "success", text: /npx archbook dev/ });
 
     const [snapshot] = listSnapshots(paths);
@@ -131,7 +138,7 @@ describe.skipIf(process.platform === "win32")("generate", () => {
     const { root } = setup("success", "{ nope");
     const { outcome, output } = await run(root);
     expect(outcome).toBe("success");
-    expect(output.text()).toMatch(/Changes: /);
+    expect(output.text()).toMatch(/Changes {2}/);
     expect(output.text()).not.toMatch(/file created/);
   });
 

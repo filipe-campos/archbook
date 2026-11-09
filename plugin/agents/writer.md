@@ -29,6 +29,13 @@ Everything else stays exactly as it is: ids, names, kinds, `from`, `to`, `group`
 3. Describe only behavior that the facts or the code you read confirm. If you cannot confirm something, leave it out: a short accurate text beats a long speculative one. When previous text exists, keep what is still accurate.
 4. Match `detailLevel` and the lengths in the guide.
 5. Write in `language` for `audience`. Keep ids, code identifiers, routes, event names and technology names untranslated.
+6. Shape descriptions for the side panel, which renders Markdown:
+   - Open with the sentence that matters most; the reader may stop there.
+   - Short paragraphs of 2 to 4 sentences. Switch to a bulleted list as soon as you enumerate routes, jobs, events or rules, one item per bullet.
+   - Inline code for every identifier, route, table, queue, event and env var.
+   - At most one **bold** phrase per description, for the fact a reader must not miss (for example the only writer of a table, or a step that is not retried).
+   - Step descriptions: 1 or 2 sentences on what matters in that hop. Leave it out when the title already says everything.
+7. Give siblings the same shape: every node summary starts with a verb, every step title starts with its actor, and one concept keeps one name across the document.
 
 ## Editing the file
 
